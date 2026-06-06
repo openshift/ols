@@ -1,0 +1,14 @@
+# Child git repos
+lightspeed-agentic-alerts-adapter/
+lightspeed-agentic-console/
+lightspeed-agentic-operator/
+lightspeed-agentic-sandbox/
+lightspeed-console/
+lightspeed-operator/
+lightspeed-rag-content/
+lightspeed-service/
+lightspeed-team-harness/
+ols-load-generator/
+
+# Jira exports
+jira-*.md
