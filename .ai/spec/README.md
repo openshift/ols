@@ -29,6 +29,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Understand how RAG indexes are built and consumed | `what/rag-pipeline.md` |
 | Understand how the operator deploys everything | `what/deployment-lifecycle.md` |
 | Understand how a user query is processed | `what/query-pipeline.md` |
+| Understand the agentic security model | `what/agentic-security.md` |
 | Check cross-repo rules | `constraints.md` |
 
 ## Conventions

@@ -111,6 +111,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Feature | Parent Spec | Repos |
 |---|---|---|
 | Agentic proposal lifecycle | `what/agentic-proposals.md` | alerts-adapter, agentic-operator, agentic-sandbox, agentic-console |
+| Agentic security (approval auth, SA isolation) | `what/agentic-security.md` | agentic-operator, agentic-console |
 | RAG pipeline (build → deploy → query) | `what/rag-pipeline.md` | rag-content, service, operator |
 | Deployment lifecycle | `what/deployment-lifecycle.md` | operator, service, console |
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |

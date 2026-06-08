@@ -24,7 +24,7 @@ Multi-phase AI workflows that diagnose and remediate cluster issues. An alert fi
 ### Phase 3: Approval
 
 12. The agentic-console displays the Proposal in "Proposed" phase with the analysis results.
-13. A human reviewer selects a remediation option, sets a max retry count, and creates a `ProposalApproval` CR for execution.
+13. A human reviewer selects a remediation option, sets a max retry count, and creates a `ProposalApproval` CR for execution. **Only cluster-admin users may approve proposals** — see `agentic-security.md` for authorization rules and enforcement.
 14. The reviewer can optionally provide revision feedback via `spec.revisionFeedback` on the Proposal.
 
 ### Phase 4: Execution
