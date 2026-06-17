@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_response' | jq -r 'if (.key // empty) then {hookSpecificOutput: {hookEventName: \"PostToolUse\", additionalContext: (\"Story \" + .key + \" was just created. Run /estimate-story \" + .key + \" to estimate story points, set the SP field, and append the estimate to the description.\")}} else empty end' 2>/dev/null || true",
+            "command": "jq -r '.tool_response' | jq -r 'if (.key // empty) then (if (.fields.issuetype.name == \"Epic\") then {hookSpecificOutput: {hookEventName: \"PostToolUse\", additionalContext: (\"Epic \" + .key + \" was just created. Run /estimate-epic \" + .key + \" to set the Size field based on child story points.\")}} elif (.fields.issuetype.name == \"Story\" or .fields.issuetype.name == \"Bug\" or .fields.issuetype.name == \"Task\" or .fields.issuetype.name == \"Weakness\" or .fields.issuetype.name == \"Vulnerability\") then {hookSpecificOutput: {hookEventName: \"PostToolUse\", additionalContext: (\"Story \" + .key + \" was just created. Run /estimate-story \" + .key + \" to estimate story points, set the SP field, and append the estimate to the description.\")}} else empty end) else empty end' 2>/dev/null || true",
             "timeout": 5,
             "statusMessage": "Checking if estimation is needed..."
           }
