@@ -1,87 +1,97 @@
 # RAG Pipeline
 
-Offline pipeline that builds vector indexes from documentation, packages them as container images, and serves them at runtime for retrieval-augmented generation.
+Dual-architecture retrieval system: OKP (Red Hat product docs via Solr hybrid search) for OCP documentation and BYOK (customer FAISS indexes) for customer-provided content.
 
 ## End-to-End Flow
 
-### Build Phase (lightspeed-rag-content)
+### A) OKP Flow (OCP Product Docs) — Runtime Retrieval
 
-1. Content is acquired from multiple sources:
-   - **OCP Product Docs**: Clone `openshift/openshift-docs` by branch (e.g., `enterprise-4.18`), convert AsciiDoc to plaintext via custom Ruby converter, filter by distro (`openshift-enterprise`).
-   - **Runbooks**: Sparse-checkout `openshift/runbooks:master` alerts directory, keep `.md` files, exclude `deprecated/` and `README.md`.
-   - **OKP (Errata)**: Download Markdown with TOML frontmatter, filter by project name and required fields.
-2. Documents are split into chunks: 380-token default, 0 overlap, using `SentenceSplitter` (plaintext) or `MarkdownNodeParser` (Markdown/HTML). Whitespace-only chunks are filtered out.
-3. Chunks are embedded using `sentence-transformers/all-mpnet-base-v2` (768-dimensional vectors, Apache 2.0 licensed).
-4. A FAISS index is created using `IndexFlatIP` (inner product similarity on normalized vectors).
-5. Indexes are organized per OCP version under `vector_db/ocp_product_docs/{version}/`. A `latest` symlink points to the highest version. Runbooks are merged into each version index.
-6. Each index directory contains: `docstore.json`, `index_store.json`, `graph_store.json`, `vector_store.json`, `metadata.json`.
+1. The operator always deploys an RHOKP sidecar container alongside the app-server pod. RHOKP serves Red Hat knowledge content (OCP docs, errata, runbooks) via a Solr HTTP API on localhost:8080.
+2. The operator generates `solr_hybrid` config in `olsconfig.yaml` pointing to the RHOKP sidecar.
+3. At startup, the service initializes a `SolrHybridSearch` client with the configured Solr HTTP base URL and loads the `ibm-granite/granite-embedding-30m-english` embedding model for query vectorization.
+4. At query time, the `search_openshift_documentation` LangChain tool is registered. The LLM decides when to invoke it.
+5. When invoked, the tool normalizes the query (stop-word removal, hyphenated-term quoting), embeds it with the granite model, and POSTs a hybrid-search request to Solr.
+6. The Solr hybrid-search uses lexical edismax as the primary query with KNN vector reranking.
+7. Results are deduped by parent document, filtered by score threshold, and returned as JSON passages (text, score, title, docs_url).
+8. The LLM grounds its answer on the returned passages.
 
-### Packaging Phase (lightspeed-rag-content)
+### B) BYOK Flow (Customer Content) — Unchanged
 
-7. The main RAG container image contains all OCP version indexes, the embedding model, and the `latest` symlink.
-8. A separate BYOK tool image contains buildah, the embedding toolchain, and the embedding model for customer custom builds.
-
-### Deployment Phase (lightspeed-operator)
-
-9. The operator reads RAG image references from the `OLSConfig` CR.
-10. RAG indexes are mounted into the service pod via init containers that copy content from the OCI image to a shared volume.
-11. The operator generates `olsconfig.yaml` with the RAG index paths and embedding model path.
-
-### Runtime Phase (lightspeed-service)
-
-12. At startup, the service loads FAISS indexes from configured `product_docs_index_path`. If the configured path is absent, it tries a `latest` fallback in the parent directory.
-13. The service initializes the same embedding model used during the build phase.
-14. If index load fails, the service logs a warning and continues with remaining indexes. The readiness probe blocks queries until at least one index is loaded.
-15. At query time, the service retrieves top-k chunks via vector similarity, filters by score cutoff, truncates to fit the token budget, deduplicates by URL, and annotates results with `index_id` and `index_origin`.
-16. When multiple indexes are configured, results are merged using score dilution (first index no penalty, subsequent indexes penalized).
+1. Customers build FAISS indexes from Markdown using the BYOK tool image.
+2. Customer RAG images are referenced in the `OLSConfig` CR (`spec.ols.rag[]`).
+3. The operator mounts BYOK indexes via init containers into a shared volume.
+4. At startup, the service loads BYOK FAISS indexes using `sentence-transformers/all-mpnet-base-v2`.
+5. At query time, BYOK chunks are retrieved via vector similarity, truncated to fit the token budget, and merged into the prompt context as direct RAG.
+6. When both OKP and BYOK are active, BYOK chunks go into prompt context first, then the LLM can additionally call the OKP tool.
 
 ## Integration Contracts
 
-### Filesystem Paths
+### OKP — Solr HTTP Contract
 
-| Path | Producer | Consumer | Content |
-|---|---|---|---|
-| `/rag/vector_db/ocp_product_docs/{version}/` | rag-content | service | FAISS index files (docstore, index_store, graph_store, vector_store, metadata) |
-| `/rag/vector_db/ocp_product_docs/latest` | rag-content | service | Symlink to highest version |
-| `/rag/embeddings_model/` | rag-content | service | HuggingFace-compatible model directory |
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `http://localhost:8080/solr/portal-rag/hybrid-search` | POST | Hybrid search (lexical + KNN vector reranking) |
 
-### Configuration (olsconfig.yaml)
+### OKP Configuration (olsconfig.yaml)
 
 | Field | Purpose |
 |---|---|
-| `ols_config.reference_content.embeddings_model_path` | Path to embedding model (defaults to model shipped in RAG image) |
+| `ols_config.solr_hybrid.url` | Solr HTTP base URL (operator-generated, always `http://localhost:8080`) |
+| `ols_config.solr_hybrid.max_results` | Maximum passages returned per query |
+| `ols_config.solr_hybrid.score_threshold` | Minimum score for passage inclusion |
+
+### BYOK — Filesystem Paths
+
+| Path | Producer | Consumer | Content |
+|---|---|---|---|
+| `/rag/vector_db/{index_name}/` | BYOK init container | service | FAISS index files (docstore, index_store, graph_store, vector_store, metadata) |
+| `/rag/embeddings_model/` | service image | service | HuggingFace-compatible model directory (all-mpnet-base-v2) |
+
+### BYOK Configuration (olsconfig.yaml)
+
+| Field | Purpose |
+|---|---|
+| `ols_config.reference_content.embeddings_model_path` | Path to BYOK embedding model |
 | `ols_config.reference_content.indexes[].product_docs_index_path` | Path to FAISS index directory |
 | `ols_config.reference_content.indexes[].product_docs_index_id` | Optional ID for deserialization |
 | `ols_config.reference_content.indexes[].product_docs_origin` | Human-readable label for logging |
 
+Note: `ols_config.reference_content` is only populated when BYOK `rag[]` entries exist in the CR. It is no longer used for OCP product docs.
+
+### Embedding Models
+
+| Model | Used For | Dimensionality |
+|---|---|---|
+| `ibm-granite/granite-embedding-30m-english` | OKP query vectorization (client-side) | 384 |
+| `sentence-transformers/all-mpnet-base-v2` | BYOK FAISS queries | 768 |
+
+Both models are bundled in the service image. [PENDING] Ask OKP team if server-side embedding is supported (preferred; would eliminate granite model from service).
+
 ### Chunk Metadata
 
-Chunks carry metadata through the pipeline:
+**BYOK chunks** carry metadata through the pipeline:
 - `docs_url` (source URL), `title` (document title)
 - HTML pipeline adds: `section_title`, `chunk_index`, `total_chunks`, `token_count`, `source_file`
 - For llama-stack backends: `document_id` (for citation linking)
 
-### Invariant
-
-The embedding model used to build indexes must be identical to the model used to query them at runtime. Model mismatch produces meaningless similarity scores. See `constraints.md` rule 8.
+**OKP passages** carry:
+- `text` (passage content), `score` (relevance score), `title` (document title), `docs_url` (source URL)
+- `parent_id` (parent document deduplication key), `index_origin: "solr_hybrid"`
 
 ## Repo Ownership
 
 | Repo | Owns |
 |---|---|
-| **lightspeed-rag-content** | Content acquisition, chunking, embedding, FAISS index creation, metadata writing, version organization, container image packaging, BYOK tool image |
-| **lightspeed-service** | Index loading at startup, similarity-based retrieval, score dilution across indexes, chunk truncation, deduplication, readiness probe integration |
-| **lightspeed-operator** | RAG image reference in OLSConfig CR, init container setup, model path configuration in generated olsconfig.yaml |
+| **lightspeed-rag-content** | BYOK tool image only. Main RAG content image deprecated. |
+| **lightspeed-service** | BYOK index loading, OKP tool registration, Solr hybrid search client, query embedding (granite + mpnet), score filtering, deduplication, readiness probe integration |
+| **lightspeed-operator** | RHOKP sidecar deployment, `solr_hybrid` config generation, BYOK init container setup, embeddings model path configuration |
 
 ## Planned Changes
 
 | Ticket | Summary |
 |---|---|
-| OLS-2294 | Enhanced chunk metadata generation stage |
-| OLS-1729 | Fine-tuned embedding models for domain-specific retrieval |
-| OLS-2903 | OKP-based RAG integration |
 | OLS-2704 | RAG as service / MCP interface |
-| OCPSTRAT-1495 | OCP KCS content inclusion |
 | OCPSTRAT-1492 | Layered product knowledge (CNV, ACM, RHOSO) |
 | OLS-1872 | BYOK Phase 2: one-click import from Git/Confluence |
-| OLS-1812 | Per-index embedding model path in CRD |
+| — | Multi-product OKP filtering (RFE pending with OKP product) |
+| — | Multi-version OKP support (RFE pending with OKP product) |

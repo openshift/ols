@@ -26,9 +26,9 @@ End-to-end flow for processing a user question: from console submission through 
 ### Stage 3 — Token Budget & RAG Retrieval (lightspeed-service)
 
 11. The token budget is computed: `context_window - response_reserve (4096) - tool_reserve (25% default)` = prompt budget.
-12. RAG chunks are retrieved via FAISS vector similarity from pre-loaded indexes.
-13. Chunks below the similarity score cutoff are filtered. Remaining chunks are truncated to fit the prompt budget.
-14. When multiple indexes are configured, results are merged using score dilution and deduplicated by URL.
+12. If BYOK indexes are configured, RAG chunks are retrieved via FAISS vector similarity from pre-loaded BYOK indexes. OCP product documentation is retrieved via the OKP tool in Stage 7.
+13. Chunks below the similarity score cutoff are filtered. Remaining chunks are truncated to fit the prompt budget. (Applies to BYOK FAISS retrieval only.)
+14. When multiple BYOK indexes are configured, results are merged using score dilution and deduplicated by URL. (Applies to BYOK FAISS retrieval only.)
 
 ### Stage 4 — History Retrieval & Compression (lightspeed-service)
 
@@ -49,7 +49,7 @@ End-to-end flow for processing a user question: from console submission through 
 
 ### Stage 7 — LLM Generation with Tool Calling (lightspeed-service)
 
-23. MCP tools are resolved from configured servers. Tool filtering (hybrid RAG) is applied if enabled.
+23. MCP tools are resolved from configured servers. The `search_openshift_documentation` tool is always registered when OKP/Solr hybrid is configured, providing LLM-driven retrieval of OCP product documentation. Tool filtering (hybrid RAG) is applied if enabled.
 24. The LLM is invoked with the composed prompt. Response tokens and reasoning chunks are streamed.
 25. If the LLM requests tool calls:
     - Tools are resolved to executable definitions.
@@ -129,7 +129,7 @@ LLMRequest:
 | **lightspeed-service** | All 8 query processing stages: validation, redaction, attachment processing, RAG retrieval, history management, skill selection, prompt composition, LLM generation with tool loop, quota tracking, transcript storage |
 | **lightspeed-console** | Query submission, streaming event rendering, conversation history UI, tool result visualization, approval UI for tool execution, feedback submission |
 | **lightspeed-operator** | Generates `olsconfig.yaml` with provider credentials, RAG paths, MCP servers, quota config, tool filtering config, skills config |
-| **lightspeed-rag-content** | Pre-built FAISS indexes consumed at runtime (read-only) |
+| **lightspeed-rag-content** | BYOK tool image for customer custom FAISS indexes |
 
 ## Planned Changes
 

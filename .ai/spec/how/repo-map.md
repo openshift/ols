@@ -11,6 +11,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | MCP tool integration & tool calling loop | lightspeed-service | `what/tools.md`, `how/tools.md` |
 | MCP apps (UI resources, tool proxy) | lightspeed-service | `what/mcp-apps.md` |
 | RAG retrieval at query time | lightspeed-service | `what/rag.md` |
+| OKP retrieval (Solr hybrid search) | lightspeed-service | `what/rag.md` |
 | Conversation history & caching | lightspeed-service | `what/conversation-history.md`, `how/cache.md` |
 | Authentication & authorization | lightspeed-service | `what/auth.md` |
 | Quota management | lightspeed-service | `what/quota.md` |
@@ -52,11 +53,11 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 
 | Concern | Repo | Spec Files |
 |---|---|---|
-| Content sources (OCP docs, runbooks, OKP) | lightspeed-rag-content | `what/content-sources.md` |
-| Embedding pipeline (chunking, vectorization) | lightspeed-rag-content | `what/embedding-pipeline.md`, `how/plaintext-pipeline.md`, `how/html-pipeline.md` |
+| Content sources (BYOK customer Markdown) | lightspeed-rag-content | `what/content-sources.md` |
+| Embedding pipeline (chunking, vectorization — BYOK only) | lightspeed-rag-content | `what/embedding-pipeline.md`, `how/plaintext-pipeline.md`, `how/html-pipeline.md` |
 | BYOK (customer custom content) | lightspeed-rag-content | `what/byok.md` |
-| Container image build | lightspeed-rag-content | `what/container-build.md`, `how/container-build.md` |
-| LSC library (shared utilities) | lightspeed-rag-content | `how/lsc-library.md` |
+| Container image build (main image deprecated, BYOK tool image only) | lightspeed-rag-content | `what/container-build.md`, `how/container-build.md` |
+| LSC library (shared utilities — BYOK scope) | lightspeed-rag-content | `how/lsc-library.md` |
 
 ## Agentic OLS — Operator
 
@@ -112,6 +113,6 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 |---|---|---|
 | Agentic proposal lifecycle | `what/agentic-proposals.md` | alerts-adapter, agentic-operator, agentic-sandbox, agentic-console |
 | Agentic security (approval auth, SA isolation) | `what/agentic-security.md` | agentic-operator, agentic-console |
-| RAG pipeline (build → deploy → query) | `what/rag-pipeline.md` | rag-content, service, operator |
+| RAG pipeline (OKP + BYOK) | `what/rag-pipeline.md` | rag-content, service, operator |
 | Deployment lifecycle | `what/deployment-lifecycle.md` | operator, service, console |
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |

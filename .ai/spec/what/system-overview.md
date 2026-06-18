@@ -8,10 +8,10 @@ OpenShift Lightspeed (OLS) is an AI-powered assistant for OpenShift clusters. It
 
 The core Q&A assistant. A user asks a question in the console, the service processes it through RAG retrieval and LLM generation (with optional tool calling), and streams back an answer.
 
-1. **lightspeed-service** (Python/FastAPI) — Backend. Owns the query pipeline, LLM provider abstraction, RAG retrieval, conversation caching, quota management, MCP tool integration, and skill execution. Spec: `lightspeed-service/.ai/spec/README.md`
+1. **lightspeed-service** (Python/FastAPI) — Backend. Owns the query pipeline, LLM provider abstraction, OKP-based knowledge retrieval (via Solr hybrid search), BYOK FAISS retrieval, conversation caching, quota management, MCP tool integration, and skill execution. Spec: `lightspeed-service/.ai/spec/README.md`
 2. **lightspeed-operator** (Go/kubebuilder) — Kubernetes operator. Reconciles the `OLSConfig` CR to deploy and manage the service, console plugin, PostgreSQL, and all supporting resources. Spec: `lightspeed-operator/.ai/spec/README.md`
 3. **lightspeed-console** (TypeScript/React) — OpenShift console plugin. Floating chat UI for the assistant, handles streaming responses, context attachment (YAML/logs), conversation history, and tool result visualization. Guide: `lightspeed-console/AGENTS.md`
-4. **lightspeed-rag-content** (Python) — Offline pipeline. Builds FAISS vector indexes from OpenShift documentation and customer content (BYOK), packages them as OCI container images consumed at runtime by the service. Spec: `lightspeed-rag-content/.ai/spec/README.md`
+4. **lightspeed-rag-content** (Python) — BYOK tooling. Provides the BYOK tool image for customers to build FAISS vector indexes from their own Markdown documentation. The main RAG content image (OCP product docs FAISS indexes) is deprecated — OCP docs are now served by OKP via the RHOKP sidecar. Spec: `lightspeed-rag-content/.ai/spec/README.md`
 
 ### Agentic OLS
 

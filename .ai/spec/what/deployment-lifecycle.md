@@ -26,9 +26,10 @@ The Kubernetes operator that deploys and manages all OpenShift Lightspeed compon
 9. **Console UI**: Single-replica nginx deployment. PatternFly image version selected per OCP version. ConsolePlugin CR created and activated in the Console CR.
 10. **PostgreSQL**: Single-replica database deployment. TLS certificates provisioned via the service-ca operator.
 11. **App Server**: FastAPI application deployment with:
+    - RHOKP sidecar (always deployed; serves OKP content via Solr HTTP on localhost:8080; requires ~75 GiB ephemeral storage). Not deployed when `byokRAGOnly` is true.
     - Data collector sidecar (if feedback/transcripts enabled and telemetry secret exists)
     - OpenShift MCP server sidecar (if introspection enabled)
-    - RAG init containers (copy index content from OCI image to shared volume)
+    - BYOK RAG init containers (copy customer index content from OCI image to shared volume, when `spec.ols.rag` configured)
 
 ### External Resource Watching
 
@@ -70,7 +71,7 @@ When an external resource changes, the operator sets `ols.openshift.io/force-rel
 
 ### Operator Image Flags
 
-The operator accepts image overrides at startup: `--service-image`, `--console-image`, `--console-image-pf5`, `--console-image-4-19`, `--postgres-image`, `--openshift-mcp-server-image`, `--dataverse-exporter-image`, `--ocp-rag-image`.
+The operator accepts image overrides at startup: `--service-image`, `--console-image`, `--console-image-pf5`, `--console-image-4-19`, `--postgres-image`, `--openshift-mcp-server-image`, `--dataverse-exporter-image`, `--rhokp-image`.
 
 ## Repo Ownership
 
