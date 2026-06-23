@@ -35,6 +35,8 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | TLS configuration | lightspeed-operator | `what/tls.md` |
 | Resource lifecycle & cleanup | lightspeed-operator | `what/resource-lifecycle.md` |
 | OLM bundle composition | lightspeed-operator | `what/bundle-composition.md` |
+| Agentic alerts adapter deployment | lightspeed-operator | [PLANNED: OLS-3236] `what/reconciliation.md` |
+| Agentic console plugin deployment | lightspeed-operator | [PLANNED: OLS-3236] `what/reconciliation.md` |
 | Observability (ServiceMonitor, PrometheusRule) | lightspeed-operator | `what/observability.md` |
 | Security (RBAC, NetworkPolicy) | lightspeed-operator | `what/security.md` |
 | Config generation (olsconfig.yaml) | lightspeed-operator | `how/config-generation.md` |
@@ -114,6 +116,6 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Agentic proposal lifecycle | `what/agentic-proposals.md` | alerts-adapter, agentic-operator, agentic-sandbox, agentic-console |
 | Agentic security (approval auth, SA isolation) | `what/agentic-security.md` | agentic-operator, agentic-console |
 | RAG pipeline (OKP + BYOK) | `what/rag-pipeline.md` | rag-content, service, operator |
-| Deployment lifecycle | `what/deployment-lifecycle.md` | operator, service, console |
+| Deployment lifecycle | `what/deployment-lifecycle.md` | operator, service, console, alerts-adapter [PLANNED: OLS-3236], agentic-console [PLANNED: OLS-3236] |
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |
 | Compliance audit logging | `what/audit-logging.md` | agentic-operator, agentic-sandbox, service, operator, agentic-console |
