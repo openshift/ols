@@ -70,7 +70,8 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Agentic CRD API (Proposal, Agent, LLMProvider) | lightspeed-agentic-operator | `what/crd-api.md` |
 | Sandbox provisioning & execution | lightspeed-agentic-operator | `what/sandbox-execution.md` |
 | Reconciler implementation | lightspeed-agentic-operator | `how/reconciler.md` |
-| CLI (olsctl) | lightspeed-agentic-operator | `how/cli.md` |
+| CLI (oc-agentic) | lightspeed-agentic-operator | `how/cli.md` |
+| CLI binary distribution | lightspeed-agentic-operator | `how/cli-distribution.md` |
 
 ## Agentic OLS — Console
 
