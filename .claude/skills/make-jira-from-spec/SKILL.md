@@ -105,16 +105,49 @@ it is NOT yet approved for Jira creation.
 
 ## Step 3: Resolve Parent
 
-If the user provided a Jira key as an argument, use it as
-the parent.
+Determine the parent for new Stories based on what the
+user provided as the starting context.
 
-If no parent was provided, ask:
+**Do NOT create Epics under Feature Requests.** The skill
+only creates Stories (and updates existing Epics/Features).
 
-> What Epic or Feature should these items live under?
-> Provide a Jira key (e.g. OLS-1234) or say "new" to
-> create a new Epic.
+### 3a. Starting context is an Epic
 
-Do NOT proceed without a parent.
+The Epic itself is the parent for any new Stories. The
+Epic's description may also need updating to reflect the
+spec changes (handled in Step 6).
+
+### 3b. Starting context is a Feature
+
+The Feature may need its description updated, but Stories
+cannot be created directly under a Feature — they need an
+Epic parent. Search the Feature's existing children for a
+matching Epic:
+
+```
+searchJiraIssuesUsingJql:
+  cloudId: redhat.atlassian.net
+  jql: >
+    parent = {FEATURE_KEY}
+    AND issuetype = Epic
+    AND resolution = Unresolved
+  fields: ["summary", "status"]
+  maxResults: 100
+```
+
+- If an existing Epic fits → propose it as the parent
+- If no Epic fits → ask the user which Epic to use or
+  whether to create a new one
+
+### 3c. Starting context is a Feature Request, or no Jira key provided
+
+Ask the user:
+
+> What Epic should these stories live under?
+> Provide a Jira key (e.g. OLS-1234).
+
+Do NOT create Epics under Feature Requests. Do NOT
+proceed without a parent Epic confirmed by the user.
 
 ## Step 4: Search Existing Jira Items
 
