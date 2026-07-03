@@ -50,27 +50,29 @@ End-to-end flow for processing a user question: from console submission through 
 ### Stage 7 — LLM Generation with Tool Calling (lightspeed-service)
 
 23. MCP tools are resolved from configured servers. The `search_openshift_documentation` tool is always registered when OKP/Solr hybrid is configured, providing LLM-driven retrieval of OCP product documentation. Tool filtering (hybrid RAG) is applied if enabled.
-24. The LLM is invoked with the composed prompt. Response tokens and reasoning chunks are streamed.
-25. If the LLM requests tool calls:
+24. If the model has `reasoning_config` set in its configuration, provider-specific reasoning/thinking parameters are applied to the LLM invocation. The config is a freeform map — each provider interprets the keys it understands (e.g., OpenAI: `effort`/`summary`; Gemini: `thinking_level`/`thinking_budget`; Anthropic: `type`/`display`; vLLM: `enabled`). When `reasoning_config` is absent, the provider uses standard non-reasoning defaults (temperature, top_p, etc.).
+25. The LLM is invoked with the composed prompt. Response tokens and reasoning chunks are streamed. Reasoning chunks arrive via LangChain `content_blocks` (OpenAI, Gemini, Anthropic) or `additional_kwargs["reasoning_content"]` (vLLM via `ChatVLLMReasoning` subclass).
+26. If the LLM requests tool calls:
     - Tools are resolved to executable definitions.
     - Approval gates are checked (`never`/`always`/`tool_annotations`). If approval required, an `approval_required` event is emitted and execution blocks until the user responds.
     - Tools execute concurrently with retries (2 retries for transient failures, exponential backoff).
     - Tool output is truncated to fit the tool budget.
     - Results are fed back to the LLM for the next iteration.
-26. The tool-calling loop runs up to `max_iterations` (ask=5, troubleshooting=15 by default). On the final iteration, tools are removed to force a text-only answer.
-27. Streaming events are emitted throughout: `token`, `reasoning`, `tool_call`, `tool_result`, `approval_required`.
+27. The tool-calling loop runs up to `max_iterations` (ask=5, troubleshooting=15 by default). On the final iteration, tools are removed to force a text-only answer.
+28. Streaming events are emitted throughout: `token`, `reasoning`, `tool_call`, `tool_result`, `approval_required`.
 
 ### Stage 8 — Response Storage & Quota (lightspeed-service)
 
-28. The conversation turn (history + tool interactions) is stored in the cache.
-29. If data collection is enabled, the full transcript is stored (provider, model, user, query, response, RAG chunks, tools used).
-30. Tokens are deducted from the user's quota (per-user and per-cluster limiters).
-31. The `end` event is emitted with referenced documents, token counts, and remaining quota.
+29. Both text and reasoning chunks are accumulated into the response string during streaming. Reasoning content is included in the stored response so the model has access to its own reasoning within the current conversation turn.
+30. The conversation turn (history + tool interactions) is stored in the cache as a plain-string `AIMessage`. No structured reasoning blocks or provider-specific signatures are preserved in the cache. [PLANNED: OLS-3442 — revisit cache schema if evals show structured reasoning storage improves multi-turn quality]
+31. If data collection is enabled, the full transcript is stored (provider, model, user, query, response, RAG chunks, tools used).
+32. Tokens are deducted from the user's quota (per-user and per-cluster limiters).
+33. The `end` event is emitted with referenced documents, token counts, and remaining quota.
 
 ### Response Rendering (lightspeed-console)
 
-32. The console renders streamed tokens as they arrive, displays referenced documents, and visualizes tool call results.
-33. The conversation is added to the user's history sidebar.
+34. The console renders streamed tokens as they arrive, displays referenced documents, and visualizes tool call results. Reasoning events are already rendered by the console — no changes needed.
+35. The conversation is added to the user's history sidebar.
 
 ## Integration Contracts
 
@@ -128,7 +130,7 @@ LLMRequest:
 |---|---|
 | **lightspeed-service** | All 8 query processing stages: validation, redaction, attachment processing, RAG retrieval, history management, skill selection, prompt composition, LLM generation with tool loop, quota tracking, transcript storage |
 | **lightspeed-console** | Query submission, streaming event rendering, conversation history UI, tool result visualization, approval UI for tool execution, feedback submission |
-| **lightspeed-operator** | Generates `olsconfig.yaml` with provider credentials, RAG paths, MCP servers, quota config, tool filtering config, skills config |
+| **lightspeed-operator** | Generates `olsconfig.yaml` with provider credentials, RAG paths, MCP servers, quota config, tool filtering config, skills config, per-model `reasoning_config` |
 | **lightspeed-rag-content** | BYOK tool image for customer custom FAISS indexes |
 
 ## Planned Changes
@@ -143,5 +145,5 @@ LLMRequest:
 | OLS-2898 | Raise `max_iterations` to 50 |
 | OLS-2521 | Support Google Gemini as direct LLM provider |
 | OLS-2776 | Support Anthropic as direct LLM provider |
-| OLS-1680 | Support AWS Bedrock |
 | OLS-1660 | Llama Stack integration |
+| OLS-3442 | Reasoning token support: per-model `reasoningConfig` for all providers, streaming accumulation fix, vLLM `ChatVLLMReasoning` subclass |
