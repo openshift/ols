@@ -22,10 +22,18 @@ Autonomous cluster operations. Alerts or user requests trigger multi-phase AI wo
 7. **lightspeed-agentic-sandbox** (Python/FastAPI) — Containerized agent runtime. Wraps multiple LLM provider SDKs (Claude, Gemini, OpenAI) behind a unified `/v1/agent/run` HTTP endpoint with structured output and tool execution. Spec: `lightspeed-agentic-sandbox/.ai/spec/README.md`
 8. **lightspeed-agentic-alerts-adapter** (Go) — Stateless bridge. Polls AlertManager for firing alerts, creates `Proposal` CRs with deduplication and cooldown logic. Guide: `lightspeed-agentic-alerts-adapter/AGENTS.md`
 
+### Multicluster OLS
+
+The hub layer for fleet-scale operations. A central hub cluster manages spoke clusters, aggregating alerts and proposals across the fleet, and providing a single pane of glass for multicluster AI-assisted operations.
+
+9. **lightspeed-hub** (Go/kubebuilder) — Hub operator. Manages `SpokeCluster` CRs, coordinates fleet-wide agentic operations, automates spoke onboarding (adapter deployment, credential configuration, health monitoring). Guide: `lightspeed-hub/AGENTS.md`
+10. **lightspeed-hub-ui** (TypeScript/React) — Console plugin for the hub. Multicluster dashboard for viewing spoke health, fleet-wide proposals, and spoke management. Guide: `lightspeed-hub-ui/AGENTS.md`
+11. **lightspeed-otel-collector** (Go) — Custom OpenTelemetry collector. Collects and forwards observability data (metrics, traces, logs) across the OLS fleet. Guide: `lightspeed-otel-collector/AGENTS.md`
+
 ### Tooling
 
-9. **lightspeed-team-harness** — Shared AI coding skills and conventions for the team (dependency updates, CI failure investigation, PR workflows, CVE resolution). Guide: `lightspeed-team-harness/AGENTS.md`
-10. **ols-load-generator** (Go) — Load testing tool. Measures OLS performance under concurrent query load, scrapes cluster Prometheus metrics. Guide: `ols-load-generator/README.md`
+12. **lightspeed-team-harness** — Shared AI coding skills and conventions for the team (dependency updates, CI failure investigation, PR workflows, CVE resolution). Guide: `lightspeed-team-harness/AGENTS.md`
+13. **ols-load-generator** (Go) — Load testing tool. Measures OLS performance under concurrent query load, scrapes cluster Prometheus metrics. Guide: `ols-load-generator/README.md`
 
 ## Cross-Repo Features
 

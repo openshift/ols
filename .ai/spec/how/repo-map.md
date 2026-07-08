@@ -101,6 +101,36 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Proposal CR creation | lightspeed-agentic-alerts-adapter | `AGENTS.md` |
 | Cooldown logic | lightspeed-agentic-alerts-adapter | `AGENTS.md` |
 
+## Multicluster OLS — Hub
+
+| Concern | Repo | Spec Files |
+|---|---|---|
+| Hub operator system overview | lightspeed-hub | `what/system-overview.md` |
+| SpokeCluster CR lifecycle (registration → decommission) | lightspeed-hub | `what/spoke-lifecycle.md` |
+| Spoke onboarding automation | lightspeed-hub | `what/spoke-lifecycle.md` |
+| Fleet-wide proposal coordination | lightspeed-hub | `what/fleet-coordination.md` |
+| Fleet-wide alert aggregation | lightspeed-hub | `what/fleet-coordination.md` |
+| Spoke health monitoring | lightspeed-hub | `what/spoke-lifecycle.md` |
+| Hub-initiated proposals | lightspeed-hub | `what/fleet-coordination.md` |
+
+## Multicluster OLS — Hub UI
+
+| Concern | Repo | Spec Files |
+|---|---|---|
+| Hub UI system overview | lightspeed-hub-ui | `what/system-overview.md` |
+| Fleet dashboard (health, proposals, alerts) | lightspeed-hub-ui | `what/fleet-dashboard.md` |
+| Spoke management (registration, detail, decommission) | lightspeed-hub-ui | `what/spoke-management.md` |
+| Fleet-wide proposal views | lightspeed-hub-ui | `what/fleet-dashboard.md` |
+
+## Multicluster OLS — OTel Collector
+
+| Concern | Repo | Spec Files |
+|---|---|---|
+| OTel collector system overview | lightspeed-otel-collector | `what/system-overview.md` |
+| Telemetry pipeline (receivers, processors, exporters) | lightspeed-otel-collector | `what/pipeline.md` |
+| Spoke-to-hub telemetry forwarding | lightspeed-otel-collector | `what/pipeline.md` |
+| Cluster identity labeling | lightspeed-otel-collector | `what/pipeline.md` |
+
 ## Tooling
 
 | Concern | Repo | Spec Files |

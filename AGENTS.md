@@ -15,6 +15,9 @@ OpenShift Lightspeed (OLS) is an AI-powered assistant for OpenShift. This worksp
 | `lightspeed-agentic-console` | Console plugin for the agentic variant |
 | `lightspeed-agentic-sandbox` | Sandboxed execution environment for agentic actions |
 | `lightspeed-agentic-alerts-adapter` | Adapter bridging OpenShift alerts into the agentic system |
+| `lightspeed-hub` | Multicluster hub — manages spoke clusters, coordinates fleet-wide agentic operations |
+| `lightspeed-hub-ui` | Console UI for the multicluster hub |
+| `lightspeed-otel-collector` | Custom OpenTelemetry collector for OLS observability |
 | `lightspeed-team-harness` | Shared AI coding skills for the team |
 | `ols-load-generator` | Load testing tool for the OLS service |
 

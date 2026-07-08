@@ -13,7 +13,7 @@ Each child repo has its own `.ai/spec/` (or `AGENTS.md`) with repo-specific beha
 
 ## Scope
 
-Covers the full OLS product across all 10 repositories in this workspace. Out of scope: internal repo implementation details (covered by each repo's own `.ai/spec/`).
+Covers the full OLS product across all 13 repositories in this workspace. Out of scope: internal repo implementation details (covered by each repo's own `.ai/spec/`).
 
 ## Audience
 
