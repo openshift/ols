@@ -82,13 +82,26 @@ For each bug, apply the three-criterion test against the spec map:
 
 | Criterion | Classification | Jira action |
 |-----------|---------------|-------------|
-| Reported behavior contradicts a defined rule in any spec file | **needs-spec-change** | Comment + transition to **Backlog** |
-| Bug describes behavior (expected or actual) not addressed in any spec | **needs-spec-change** | Comment + transition to **Backlog** |
-| Fixing the bug would require changing a cross-repo contract, API shape, or CRD | **needs-spec-change** | Comment + transition to **Backlog** |
+| Reported behavior contradicts a defined rule in any spec file | **needs-spec-change** | Comment + labels + transition to **Backlog** |
+| Bug describes behavior (expected or actual) not addressed in any spec | **needs-spec-change** | Comment + labels + transition to **Backlog** |
+| Fixing the bug would require changing a cross-repo contract, API shape, or CRD | **needs-spec-change** | Comment + labels + transition to **Backlog** |
 | Description too vague to evaluate any criterion above | **needinfo** | Comment only — stays in **New** |
-| None of the above — clear implementation error, spec is correct | **no-spec-change-needed** | Transition to **Refinement** (no comment) |
+| None of the above — clear implementation error, spec is correct | **no-spec-change-needed** | Transition to **Refinement** (no comment, no labels) |
 
 For bugs with **no description**, classify automatically as **needinfo**.
+
+### Scope gauge (needs-spec-change only)
+
+For every **needs-spec-change** bug, also gauge the scope of the spec change
+required and assign exactly one additional label:
+
+| Label | When to use |
+|-------|-------------|
+| `ols-team` | Broad or architectural — touches multiple spec files or repos, cross-repo contracts, or requires team-wide alignment before the spec can be written |
+| `subteam` | Localized — touches one or two spec files within a single repo; a small number of people familiar with that area can write the spec update |
+
+Add both `needs-spec-change` and the scope label (`ols-team` or `subteam`)
+to the bug. Fetch existing labels first and append — do not overwrite.
 
 Draft a comment for every **needs-spec-change** and **needinfo** bug.
 
@@ -113,10 +126,10 @@ Show the full analysis before touching Jira:
 ```
 ## Bug Triage — New OLS Bugs (N total)
 
-### Needs Spec Change (X bugs) → Backlog
-| Key | Summary | Criterion triggered | Relevant spec |
-|-----|---------|--------------------| --------------|
-| OLS-1234 | ... | Contradicts rule in ... | repo/.ai/spec/... |
+### Needs Spec Change (X bugs) → Backlog + labels
+| Key | Summary | Criterion triggered | Scope | Relevant spec |
+|-----|---------|--------------------| ------|---------------|
+| OLS-1234 | ... | Contradicts rule in ... | ols-team | repo/.ai/spec/... |
 
 Draft comment for OLS-1234:
 > [full draft comment text]
@@ -154,7 +167,7 @@ For each approved issue, execute in order: comment first (if applicable), then t
 
 ### needs-spec-change
 
-Post comment via `addCommentToJiraIssue`, then transition to Backlog:
+Post comment, set labels (appending to existing), then transition to Backlog:
 
 ```
 addCommentToJiraIssue:
@@ -163,12 +176,21 @@ addCommentToJiraIssue:
   commentBody: [draft comment]
   contentFormat: markdown
 
+editJiraIssue:
+  cloudId: redhat.atlassian.net
+  issueIdOrKey: OLS-XXXX
+  fields:
+    labels: [<existing labels> + "needs-spec-change" + "<ols-team|subteam>"]
+
 transitionJiraIssue:
   cloudId: redhat.atlassian.net
   issueIdOrKey: OLS-XXXX
   transition:
     id: "<Backlog transition ID from Step 4>"
 ```
+
+Fetch the issue's current `labels` field before editing and merge — never
+overwrite labels that are already present.
 
 ### needinfo
 
@@ -197,11 +219,11 @@ transitionJiraIssue:
 Print a summary table of all actions taken:
 
 ```
-| Key | Classification | Comment posted | Transitioned to |
-|-----|---------------|----------------|-----------------|
-| OLS-1234 | needs-spec-change | yes | Backlog |
-| OLS-1235 | needinfo | yes | (none) |
-| OLS-1236 | no-spec-change-needed | no | Refinement |
+| Key | Classification | Comment | Labels added | Transitioned to |
+|-----|---------------|---------|--------------|-----------------|
+| OLS-1234 | needs-spec-change | yes | needs-spec-change, ols-team | Backlog |
+| OLS-1235 | needinfo | yes | (none) | (none) |
+| OLS-1236 | no-spec-change-needed | no | (none) | Refinement |
 ```
 
 ## Constraints
