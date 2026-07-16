@@ -67,7 +67,8 @@ Read all discovered index files. This gives you a map of:
 - Which repos and components own which concerns
 
 Hold this map in context. You will read individual spec files on demand in
-Step 5, not upfront.
+Step 5, not upfront. If you have already read a spec file earlier in the run
+for a previous bug, you do not need to re-read it for subsequent bugs.
 
 ## Step 3: Fetch New Bugs
 
@@ -112,6 +113,12 @@ on its summary, description, and components. Read only those files.
 If the bug's area is unclear from the map, read the most likely candidate spec
 file and check.
 
+**You MUST read the actual spec file content before classifying.** You cannot
+classify based on the spec map or bug description alone. When reading, explicitly
+check for rules that CONTRADICT the desired behavior described in the bug — a
+spec rule that explicitly excludes or prohibits a behavior is criterion 1 even
+if the fix appears to be a localized code change.
+
 ### 5b. Apply the three-criterion test
 
 | Criterion | Classification | Jira action |
@@ -133,6 +140,24 @@ and explain why in the reasoning.
 **Empty description:** A bug has no description if its `description` field is
 `null`, empty string, or contains only whitespace. Classify as **needinfo**.
 
+**Spec evidence requirement:** Every `needs-spec-change` or `no-spec-change-needed`
+classification must include a verbatim excerpt from the spec file (not a
+paraphrase, and not from the bug description — bug descriptions may contain
+inaccurate or outdated spec references). The evidence depends on the criterion:
+
+- **Criterion 1 or 3** (contradicts or changes a defined rule): quote the
+  specific section heading and passage that is contradicted or would change.
+- **Criterion 2** (behavior should be specced but is absent): name the spec
+  file and section heading where you expected to find coverage and confirm it
+  is absent. E.g., "Searched `sandbox-execution.md` sections 'Prompt
+  Construction' and 'Agent Configuration' — no rule addresses tool awareness."
+- **no-spec-change-needed**: quote the passage that correctly handles the
+  behavior, or name the spec file(s) you searched and confirm no relevant
+  rule exists (meaning the behavior is purely internal implementation).
+
+If you cannot provide any of the above, you have not read the file — go back
+and read it before classifying.
+
 ### 5c. Scope gauge (needs-spec-change only)
 
 For every **needs-spec-change** bug, also gauge the scope of the spec change
@@ -150,8 +175,9 @@ Draft a comment for every bug. Format:
 **needs-spec-change:**
 > AI triage: This bug requires a spec update. [State which criterion applies
 > and what the conflict or gap is.] The relevant spec is
-> `[repo]/.ai/spec/[file]`. Flagging for spec review before implementation
-> begins.
+> `[repo]/.ai/spec/[file]`. Spec evidence: [verbatim quote of the contradicted
+> rule, OR "Searched [file], sections [X] and [Y] — no rule addresses [topic]"
+> for criterion 2 gaps]. Flagging for spec review before implementation begins.
 
 **needinfo:**
 > AI triage: This bug report lacks sufficient detail to determine whether a
@@ -160,9 +186,11 @@ Draft a comment for every bug. Format:
 > information so the bug can be properly triaged.
 
 **no-spec-change-needed:**
-> AI triage: No spec change required. [One sentence explaining why — e.g.,
-> "The spec correctly defines this behavior; the issue is a localized
-> implementation error."] Transitioning to Refinement for implementation.
+> AI triage: No spec change required. [One sentence explaining why.] Verified
+> against `[repo]/.ai/spec/[file]`: "[verbatim quote of the rule that correctly
+> handles this behavior]" OR "Searched [file], sections [X] — no spec rule
+> governs this; purely internal implementation." Transitioning to Refinement
+> for implementation.
 
 ## Step 6: Present Report
 
@@ -172,9 +200,9 @@ Show the full analysis before touching Jira:
 ## Bug Triage — New OLS Bugs (N total, M skipped as already triaged)
 
 ### Needs Spec Change (X bugs) → Backlog + labels
-| Key | Summary | Criterion triggered | Scope | Relevant spec |
-|-----|---------|--------------------| ------|---------------|
-| OLS-1234 | ... | Contradicts rule in ... | ols-team | repo/.ai/spec/... |
+| Key | Summary | Criterion triggered | Scope | Relevant spec | Spec evidence |
+|-----|---------|--------------------| ------|---------------|---------------|
+| OLS-1234 | ... | Contradicts rule in ... | ols-team | repo/.ai/spec/... | "verbatim quote" or "Absence confirmed in [section]" |
 
 Draft comment for OLS-1234:
 > [full draft comment text]
@@ -192,9 +220,9 @@ Draft comment for OLS-1235:
 ---
 
 ### No Spec Change Needed (Z bugs) → Refinement
-| Key | Summary | Reason |
-|-----|---------|--------|
-| OLS-1236 | ... | Implementation error; spec correctly defines behavior |
+| Key | Summary | Reason | Spec evidence |
+|-----|---------|--------|---------------|
+| OLS-1236 | ... | Implementation error; spec correctly defines behavior | "verbatim quote" or "No relevant rule in [file]" |
 
 Draft comment for OLS-1236:
 > [full draft comment text]
