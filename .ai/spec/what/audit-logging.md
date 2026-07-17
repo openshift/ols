@@ -243,6 +243,7 @@ If `spec.audit` is absent entirely, behavior is `enabled: true` with no-op OTLP 
 - The agentic-operator reads `AgenticOLSConfig.spec.audit` directly and passes the OTEL endpoint to the sandbox (env var or config mount).
 - The stdout exporter always emits when audit is enabled — this is what any log aggregator (Loki, Splunk, Fluentd, etc.) reads from container logs.
 - The OTLP exporter is additive — gives distributed tracing visualization (Jaeger/Tempo) when an endpoint is configured.
+- When `audit.otel.tls_mode` is `Secure`, the OTLP gRPC client MUST use the merged CA bundle from `certificate_directory` / `extra_ca` for TLS verification — the same trust store used for LLM provider and MCP connections.
 
 ### Auto-Detection
 
