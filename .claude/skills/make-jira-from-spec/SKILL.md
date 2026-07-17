@@ -108,8 +108,10 @@ it is NOT yet approved for Jira creation.
 Determine the parent for new Stories based on what the
 user provided as the starting context.
 
-**Do NOT create Epics under Feature Requests.** The skill
-only creates Stories (and updates existing Epics/Features).
+**Do NOT create Epics or Stories under Feature Requests.**
+A Feature Request is a source of context, not a parent
+container. The skill creates Epics and Stories under a
+confirmed parent (Feature or existing Epic).
 
 ### 3a. Starting context is an Epic
 
@@ -141,13 +143,59 @@ searchJiraIssuesUsingJql:
 
 ### 3c. Starting context is a Feature Request, or no Jira key provided
 
-Ask the user:
+Neither Epics nor Stories may be parented under a Feature
+Request. A Feature Request is only a source of context.
+Find or create an Epic as the parent for Stories.
 
-> What Epic should these stories live under?
-> Provide a Jira key (e.g. OLS-1234).
+**Step 1 — Search for related open Epics.** Extract key
+terms from the Feature Request summary and the proposed
+stories, then search for candidate Epics:
 
-Do NOT create Epics under Feature Requests. Do NOT
-proceed without a parent Epic confirmed by the user.
+```
+searchJiraIssuesUsingJql:
+  cloudId: redhat.atlassian.net
+  jql: >
+    project = OLS
+    AND issuetype = Epic
+    AND resolution = Unresolved
+    AND summary ~ "{key terms}"
+  fields: ["summary", "status"]
+  maxResults: 20
+```
+
+Run multiple queries if the proposed stories span different
+areas — use the most distinctive terms from each story
+cluster, not generic words like "OLS" or "support".
+
+**Step 2 — Present candidates.** If matching Epics are
+found, present them to the user:
+
+```
+I found these open Epics that may fit:
+
+| #  | Key      | Summary                         | Status      |
+|----|----------|---------------------------------|-------------|
+| 1  | OLS-XXXX | {summary}                       | {status}    |
+| 2  | OLS-YYYY | {summary}                       | {status}    |
+
+Options:
+  1/2/… — use that Epic as parent
+  new   — create a new Epic (I'll ask for details)
+  other — provide a different Epic key
+```
+
+**Step 3 — No matches found.** If no related Epics exist,
+tell the user and ask:
+
+```
+No open Epics match these stories. Options:
+  new   — create a new Epic (I'll draft summary & scope)
+  key   — provide an existing Epic key (e.g. OLS-1234)
+```
+
+**Wait for the user.** Do NOT create Epics or Stories
+without a confirmed parent. Do NOT parent anything under
+the Feature Request.
 
 ## Step 4: Search Existing Jira Items
 
@@ -208,10 +256,30 @@ Before the first Jira call, resolve the **cloudId** by
 calling `getAccessibleAtlassianResources` and picking the
 `redhat.atlassian.net` site.
 
+### Inherit labels from Feature Request
+
+When the starting context is a **Feature Request**, fetch
+its labels before creating any items:
+
+```
+getJiraIssue:
+  cloudId: {cloudId}
+  issueIdOrKey: "{FEATURE_REQUEST_KEY}"
+  fields: ["labels"]
+```
+
+Store the labels list. Every Epic and Story created in
+this run must carry these labels via `additional_fields`.
+
 ### Creating items
 
 Create Epics first, then Stories (so Stories can reference
 their parent Epic).
+
+Parent items under the resolved parent (the Epic confirmed
+in Step 3 — never a Feature Request). When labels were
+inherited from a Feature Request, pass them via
+`additional_fields`:
 
 ```
 createJiraIssue:
@@ -222,10 +290,16 @@ createJiraIssue:
   description: "{markdown description with AC}"
   contentFormat: "markdown"
   parent: "{parent key}"
+  additional_fields:          # only when labels inherited
+    labels: ["{label1}", ...]
 ```
 
-Immediately after creating each item, transition it from
-**New** to **Refinement** (transition ID `31`):
+**MANDATORY — transition every created item immediately.**
+Do NOT proceed to the next item until the transition is
+confirmed. This is the most commonly skipped step — treat
+it as part of the creation, not a follow-up.
+
+For **each** created item, immediately call:
 
 ```
 transitionJiraIssue:
@@ -235,8 +309,48 @@ transitionJiraIssue:
     id: "31"
 ```
 
-This applies to every created Epic and Story. Do not leave
-any item in New status.
+Then verify the status changed:
+
+```
+getJiraIssue:
+  cloudId: {cloudId}
+  issueIdOrKey: "{newly created key}"
+  fields: ["status"]
+```
+
+The status must be **Refinement**. If it is still **New**,
+retry the transition. If it fails twice, report the error
+to the user — do not silently continue.
+
+This applies to every created Epic and Story without
+exception. No item may be left in New status.
+
+### Linking back to the Feature Request
+
+If the starting context was a Feature Request, after all
+Epics and Stories are created, add a comment to the
+Feature Request summarizing the work items:
+
+```
+addCommentToJiraIssue:
+  cloudId: {cloudId}
+  issueIdOrKey: "{FEATURE_REQUEST_KEY}"
+  commentBody: |
+    Work items created from spec decomposition:
+
+    **Epics:**
+    - [OLS-XXXX] {epic summary}
+
+    **Stories:**
+    - [OLS-YYYY] {story summary} (under OLS-XXXX)
+    - [OLS-ZZZZ] {story summary} (under OLS-XXXX)
+
+    Source: {spec file path(s)}
+  contentFormat: "markdown"
+```
+
+This ensures the Feature Request has full visibility of
+all work items created from it.
 
 ### Updating items
 
