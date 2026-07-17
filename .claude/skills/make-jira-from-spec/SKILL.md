@@ -108,8 +108,10 @@ it is NOT yet approved for Jira creation.
 Determine the parent for new Stories based on what the
 user provided as the starting context.
 
-**Do NOT create Epics under Feature Requests.** The skill
-only creates Stories (and updates existing Epics/Features).
+**Do NOT create Epics or Stories under Feature Requests.**
+A Feature Request is a source of context, not a parent
+container. The skill creates Epics and Stories under a
+confirmed parent (Feature or existing Epic).
 
 ### 3a. Starting context is an Epic
 
@@ -141,8 +143,9 @@ searchJiraIssuesUsingJql:
 
 ### 3c. Starting context is a Feature Request, or no Jira key provided
 
-Stories must **never** be parented under a Feature Request.
-Instead, find or create an Epic as the parent.
+Neither Epics nor Stories may be parented under a Feature
+Request. A Feature Request is only a source of context.
+Find or create an Epic as the parent for Stories.
 
 **Step 1 — Search for related open Epics.** Extract key
 terms from the Feature Request summary and the proposed
@@ -190,9 +193,9 @@ No open Epics match these stories. Options:
   key   — provide an existing Epic key (e.g. OLS-1234)
 ```
 
-**Wait for the user.** Do NOT create stories without a
-confirmed Epic parent. Do NOT parent stories under the
-Feature Request.
+**Wait for the user.** Do NOT create Epics or Stories
+without a confirmed parent. Do NOT parent anything under
+the Feature Request.
 
 ## Step 4: Search Existing Jira Items
 
@@ -273,41 +276,13 @@ this run must carry these labels via `additional_fields`.
 Create Epics first, then Stories (so Stories can reference
 their parent Epic).
 
-When the starting context is a **Feature Request**, newly
-created Epics must be parented under that Feature Request
-and carry its labels:
+When the starting context is a **Feature Request**, use
+the Epic confirmed in Step 3c as the parent — never the
+Feature Request itself. Pass inherited labels via
+`additional_fields`:
 
-```
-createJiraIssue:
-  cloudId: {cloudId}
-  projectKey: OLS
-  issueTypeName: Epic
-  summary: "{summary}"
-  description: "{markdown description with AC}"
-  contentFormat: "markdown"
-  parent: "{FEATURE_REQUEST_KEY}"
-  additional_fields:
-    labels: ["{label1}", "{label2}", ...]
-```
-
-Stories are then parented under their Epic (never the
-Feature Request) and also carry the Feature Request labels:
-
-```
-createJiraIssue:
-  cloudId: {cloudId}
-  projectKey: OLS
-  issueTypeName: Story
-  summary: "{summary}"
-  description: "{markdown description with AC}"
-  contentFormat: "markdown"
-  parent: "{EPIC_KEY}"
-  additional_fields:
-    labels: ["{label1}", "{label2}", ...]
-```
-
-For all other starting contexts (Epic, Feature, or
-user-provided key), use the resolved parent as before:
+For all starting contexts, parent items under the resolved
+parent (Epic or Feature — never a Feature Request):
 
 ```
 createJiraIssue:
@@ -318,6 +293,8 @@ createJiraIssue:
   description: "{markdown description with AC}"
   contentFormat: "markdown"
   parent: "{parent key}"
+  additional_fields:          # only when labels inherited
+    labels: ["{label1}", ...]
 ```
 
 **MANDATORY — transition every created item immediately.**
