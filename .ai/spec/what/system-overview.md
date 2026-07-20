@@ -32,7 +32,7 @@ The hub layer for fleet-scale operations. A central hub cluster manages spoke cl
 
 ### Tooling
 
-12. **lightspeed-team-harness** — Shared AI coding skills and conventions for the team (dependency updates, CI failure investigation, PR workflows, CVE resolution). Guide: `lightspeed-team-harness/AGENTS.md`
+12. **lightspeed-team-harness** — Shared AI coding skills and conventions for the team (dependency updates, CI failure investigation, PR workflows, CVE resolution). Also hosts the event adapter prototype (polls Jira for new bugs, creates AgenticRun CRs for automated triage). Guide: `lightspeed-team-harness/AGENTS.md`; event adapter spec: `lightspeed-team-harness/.ai/spec/what/event-adapter.md`
 13. **ols-load-generator** (Go) — Load testing tool. Measures OLS performance under concurrent query load, scrapes cluster Prometheus metrics. Guide: `ols-load-generator/README.md`
 
 ## Cross-Repo Features

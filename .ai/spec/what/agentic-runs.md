@@ -6,10 +6,16 @@ Multi-phase AI workflows that diagnose and remediate cluster issues. An alert fi
 
 ### Phase 1: Trigger
 
+An external event source creates an `AgenticRun` CR to initiate a workflow. Any authorized adapter, controller, CLI, or API client can create AgenticRuns — the operator reconciles them regardless of origin.
+
+**Example — alerts-adapter (AlertManager events):**
+
 1. The alerts-adapter polls OpenShift AlertManager for firing alerts on a configurable interval.
 2. For each firing alert, the adapter computes a fingerprint (8-char prefix) and checks for an existing AgenticRun CR with a deterministic name derived from the fingerprint.
 3. If no matching AgenticRun exists and the cooldown window has elapsed since the last AgenticRun for that fingerprint, the adapter creates a new `AgenticRun` CR in the alert's namespace with the alert metadata and a templated remediation request.
 4. The adapter is create-only — it never updates or deletes AgenticRuns after creation.
+
+> Other adapters (e.g., the Jira event adapter prototype) follow the same pattern. See each adapter's own `.ai/spec/` for details.
 
 ### Phase 2: Analysis
 
@@ -60,7 +66,7 @@ Multi-phase AI workflows that diagnose and remediate cluster issues. An alert fi
 
 | CRD | Scope | Owner | Purpose |
 |---|---|---|---|
-| `AgenticRun` | Namespace | alerts-adapter (creates), operator (reconciles) | Workflow state machine. Immutable spec, mutable revisionFeedback, status conditions. |
+| `AgenticRun` | Namespace | external adapters/clients (creates), operator (reconciles) | Workflow state machine. Immutable spec, mutable revisionFeedback, status conditions. |
 | `AgenticRunApproval` | Namespace | console (creates) | Approval decisions per stage, option selection, max attempts override. Owned by AgenticRun. |
 | `ApprovalPolicy` | Cluster (singleton "cluster") | admin (creates) | Automatic/Manual gates per stage, max attempts, max concurrent runs. |
 | `Agent` | Cluster | admin (creates) | LLM provider selection and model name. |
@@ -110,3 +116,4 @@ Context envelope varies by phase:
 | OLS-3268 | Analysis can signal `actionRequired=false` to auto-complete with `NoActionRequired` phase |
 | OLS-3295 | Rename `Proposal` → `AgenticRun`, `ProposalApproval` → `AgenticRunApproval`, `ProposalResult` → `RemediationPlan` across CRDs, API, CLI, console, and docs |
 | OLS-3441 | Script-grounded RBAC: analysis produces concrete bash scripts and derives RBAC from commands; execution dry-runs mutations before applying |
+| OLS-3657 | Event adapter: Jira-triggered AgenticRuns for automated bug triage (prototype in lightspeed-team-harness) |

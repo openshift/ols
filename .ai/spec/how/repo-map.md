@@ -131,11 +131,18 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Spoke-to-hub telemetry forwarding | lightspeed-otel-collector | `what/pipeline.md` |
 | Cluster identity labeling | lightspeed-otel-collector | `what/pipeline.md` |
 
+## Agentic OLS — Event Adapter (Prototype)
+
+| Concern | Repo | Spec Files |
+|---|---|---|
+| Jira event polling & AgenticRun creation | lightspeed-team-harness | `what/event-adapter.md` |
+| Triage skill packaging (OCI) | lightspeed-team-harness | `what/event-adapter.md` |
+
 ## Tooling
 
 | Concern | Repo | Spec Files |
 |---|---|---|
-| Shared AI coding skills | lightspeed-team-harness | `AGENTS.md` (no `.ai/spec/` yet) |
+| Shared AI coding skills | lightspeed-team-harness | `AGENTS.md` |
 | Load testing & metrics | ols-load-generator | `README.md` (no `.ai/spec/` yet) |
 
 ## Cross-Repo Features
