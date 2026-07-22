@@ -149,6 +149,10 @@ Ask the user:
 Do NOT create Epics under Feature Requests. Do NOT
 proceed without a parent Epic confirmed by the user.
 
+**Save the Feature Request key** (if provided) — it will be
+needed in Step 6b to create issue links and update the
+description.
+
 ## Step 4: Search Existing Jira Items
 
 Query children of the user-provided parent only:
@@ -238,6 +242,53 @@ transitionJiraIssue:
 This applies to every created Epic and Story. Do not leave
 any item in New status.
 
+### 6b. Link to Feature Request (if applicable)
+
+If the starting context was a Feature Request (saved in
+Step 3c), create bi-directional issue links:
+
+For each newly created Epic and Story, call:
+
+```
+createIssueLink:
+  cloudId: {cloudId}
+  inwardIssue: "{FEATURE_REQUEST_KEY}"
+  outwardIssue: "{newly created key}"
+  type: "relates"
+```
+
+This creates the link in both directions:
+- Feature Request shows: "relates to Epic/Story OLS-XXXX"
+- Epic/Story shows: "relates to Feature Request OLS-YYYY"
+
+After linking, update the Feature Request description to
+add an "Implemented By" section. Fetch the current
+description first, then append:
+
+```markdown
+## Implemented By
+
+This Feature Request is implemented by the following work items:
+
+- [OLS-1234](https://redhat.atlassian.net/browse/OLS-1234) — {Epic summary}
+  - [OLS-1235](https://redhat.atlassian.net/browse/OLS-1235) — {Story summary}
+  - [OLS-1236](https://redhat.atlassian.net/browse/OLS-1236) — {Story summary}
+```
+
+Use `editJiraIssue` to update the Feature Request:
+
+```
+editJiraIssue:
+  cloudId: {cloudId}
+  issueIdOrKey: "{FEATURE_REQUEST_KEY}"
+  fields:
+    description: "{updated markdown with Implemented By section}"
+  contentFormat: "markdown"
+```
+
+Preserve all existing content in the Feature Request
+description — only append the new "Implemented By" section.
+
 ### Updating items
 
 Fetch the current description first, then merge changes:
@@ -320,12 +371,12 @@ Invoke `/estimate-epic` with all epic keys:
 /estimate-epic OLS-2001
 ```
 
-## Step 8: Auto-Split Oversized Stories
+## Step 9: Auto-Split Oversized Stories
 
 After estimation, check every story. If any story was
 estimated at more than 5 SP:
 
-### 8a. Brainstorm the split
+### 9a. Brainstorm the split
 
 Use `superpowers:brainstorming` to break the oversized story
 into smaller stories, each targeting ≤ 3 SP.
@@ -336,7 +387,7 @@ parent is already an Epic and the split stories form a
 distinct workstream, create a new Epic as a sibling.
 Otherwise, keep the smaller stories under the same parent.
 
-### 8b. Present split for approval
+### 9b. Present split for approval
 
 ```
 Story OLS-1002 estimated at 8 SP — splitting:
@@ -354,7 +405,7 @@ Options:
 
 **Wait for user approval.**
 
-### 8c. Execute the split
+### 9c. Execute the split
 
 1. Create new Epic (if proposed) via `createJiraIssue`
 2. Create the smaller stories via `createJiraIssue`
@@ -366,7 +417,14 @@ Options:
    stories
 6. Re-run `/estimate-epic` on all affected Epics
 
-## Step 9: Report
+## Step 8: Update Feature Request (if applicable)
+
+If the Feature Request was updated with links and description
+changes in Step 6b, verify the changes were successful and
+report that the Feature Request now contains the "Implemented
+By" section linking to all created work items.
+
+## Step 10: Report
 
 Print a summary table of everything created and updated:
 
@@ -381,6 +439,8 @@ Print a summary table of everything created and updated:
 | OLS-1234 | Story | {summary}            | 3  | 2    | Updated |
 
 Epics sized: OLS-2001 → S (15 SP)
+
+Feature Request updated: OLS-5000 now contains "Implemented By" section with links to all created Epics/Stories. Issue links created for bi-directional navigation.
 
 Spec sources:
 - lightspeed-service/.ai/spec/what/query-pipeline.md
