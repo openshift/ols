@@ -147,11 +147,11 @@ service:
 
 ### Container Image
 
-Built and shipped from the `lightspeed-otel-postgres-collector` repository. Single container image containing the custom Collector binary.
+Built and shipped from the `lightspeed-otel-collector` repository. Single container image containing the custom Collector binary.
 
 ## Collector Repository
 
-**Repo:** `lightspeed-otel-postgres-collector`
+**Repo:** `lightspeed-otel-collector`
 
 Contents:
 - OCB build manifest (`builder-config.yaml`)
@@ -210,7 +210,7 @@ Ships one artifact: a container image with the custom Collector binary.
 
 | Repo | Templog Responsibilities |
 |---|---|
-| **lightspeed-otel-postgres-collector** | OCB manifest, custom `postgresexporter` Go code, Dockerfile, Konflux build pipeline. Ships the Collector container image. |
+| **lightspeed-otel-collector** | OCB manifest, custom `postgresexporter` Go code, Dockerfile, Konflux build pipeline. Ships the Collector container image. |
 | **lightspeed-operator** | Read `AgenticOLSConfig.spec.templog`. Deploy/remove Collector Deployment, Service, ConfigMap, NetworkPolicy. Add `templogs` schema to Postgres bootstrap. Wire OTLP log endpoint to agentic pods. CRD change: add `spec.templog` to `AgenticOLSConfig`. |
 | **lightspeed-agentic-operator** | Add OTLP log emission when endpoint is configured. Add `agentic.openshift.io/templog-cleanup` finalizer to AgenticRuns. Finalizer handler: delete rows from `templogs.logs` on AgenticRun deletion. |
 | **lightspeed-agentic-sandbox** | Add OTLP log emission when endpoint is configured. |
@@ -219,8 +219,6 @@ Ships one artifact: a container image with the custom Collector binary.
 
 | Repo | File | Content |
 |---|---|---|
-| lightspeed-otel-postgres-collector | `what/collector.md` | OCB build, `postgresexporter` implementation, Collector configuration |
-| lightspeed-otel-postgres-collector | `what/postgres-exporter.md` | Custom exporter Go implementation, batch insert strategy, schema interaction |
 | lightspeed-operator | `what/templog.md` | Collector lifecycle reconciliation, schema bootstrap, pod wiring |
 | lightspeed-agentic-operator | `what/crd-api.md` (update) | Add `spec.templog` to `AgenticOLSConfig` |
 | lightspeed-operator | `what/postgres.md` (update) | Add `templogs` schema to bootstrap |

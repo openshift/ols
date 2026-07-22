@@ -64,7 +64,7 @@ End-to-end flow for processing a user question: from console submission through 
 ### Stage 8 — Response Storage & Quota (lightspeed-service)
 
 29. Both text and reasoning chunks are accumulated into the response string during streaming. Reasoning content is included in the stored response so the model has access to its own reasoning within the current conversation turn.
-30. The conversation turn (history + tool interactions) is stored in the cache as a plain-string `AIMessage`. No structured reasoning blocks or provider-specific signatures are preserved in the cache. [PLANNED: OLS-3442 — revisit cache schema if evals show structured reasoning storage improves multi-turn quality]
+30. The conversation turn (history + tool interactions) is stored in the cache as a plain-string `AIMessage`. No structured reasoning blocks or provider-specific signatures are preserved in the cache.
 31. If data collection is enabled, the full transcript is stored (provider, model, user, query, response, RAG chunks, tools used).
 32. Tokens are deducted from the user's quota (per-user and per-cluster limiters).
 33. The `end` event is emitted with referenced documents, token counts, and remaining quota.

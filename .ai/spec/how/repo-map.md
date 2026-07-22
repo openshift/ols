@@ -150,4 +150,4 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Deployment lifecycle | `what/deployment-lifecycle.md` | operator, service, console, alerts-adapter [PLANNED: OLS-3236], agentic-console [PLANNED: OLS-3236] |
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |
 | Compliance audit logging | `what/audit-logging.md` | agentic-operator, agentic-sandbox, service, operator, agentic-console |
-| Temporary audit log storage | `what/templog.md` | lightspeed-otel-postgres-collector, operator, agentic-operator, agentic-sandbox |
+| Temporary audit log storage | `what/templog.md` | lightspeed-otel-collector, operator, agentic-operator, agentic-sandbox |
