@@ -3,7 +3,7 @@
 **Feature Request:** [OLS-3572](https://redhat.atlassian.net/browse/OLS-3572)
 **Date:** 2026-07-21
 **Status:** Draft
-**Related:** [OLS-3526](https://redhat.atlassian.net/browse/OLS-3526) (standalone HTTPS ocp-mcp), [OLS-3594](https://redhat.atlassian.net/browse/OLS-3594) (ocp-mcp auto-injection), [OLS-3443](https://redhat.atlassian.net/browse/OLS-3443) (MCP server connectivity)
+**Related:** [OLS-3526](https://redhat.atlassian.net/browse/OLS-3526) (standalone HTTPS ocp-mcp), [OLS-3594](https://redhat.atlassian.net/browse/OLS-3594) (ocp-mcp auto-injection), [OLS-3443](https://redhat.atlassian.net/browse/OLS-3443) (MCP server connectivity), [OLS-3697](https://redhat.atlassian.net/browse/OLS-3697) (standalone HTTPS RHOKP)
 
 ## Problem
 
@@ -43,6 +43,7 @@ The lightspeed-operator creates and maintains a ConfigMap during reconciliation:
 | `sandbox-mode` | string | `bare-pod` or `sandbox-claim` — from `OLSConfig.spec.agenticOLS.sandboxMode` |
 | `mcp-endpoint` | string | MCP server endpoint URL. Present when ocp-mcp is deployed as a standalone HTTPS service. Used by the agentic operator to construct `LIGHTSPEED_MCP_SERVERS` entries when merging with per-run MCP servers. |
 | `otel-endpoint` | string | OTEL collector gRPC endpoint. Informational (already set as env var in PodSpec). Present when templog collector is deployed. |
+| `rhokp-endpoint` | string | [PLANNED: OLS-3697] RHOKP Solr HTTPS endpoint URL (`https://lightspeed-rhokp.<ns>.svc:8443`). Present when OKP is enabled (`!byokRAGOnly`). |
 
 The ConfigMap is **always created** by the lightspeed-operator. Keys are absent when the corresponding feature is not enabled (e.g., `mcp-endpoint` absent when ocp-mcp is not deployed, `otel-endpoint` absent when templog is not deployed). The `sandbox-pod-spec` key is always present.
 
@@ -55,6 +56,7 @@ The lightspeed-operator builds the base `corev1.PodSpec` containing:
 | Sandbox container image | `--agentic-sandbox-image` flag / related-images.json | Container image field |
 | OTEL endpoint | Templog OTel collector service | `OTEL_EXPORTER_OTLP_ENDPOINT` env var |
 | MCP CA certificate | Service-CA cert for ocp-mcp service | Volume + VolumeMount (CA bundle mounted directly) |
+| RHOKP CA certificate | [PLANNED: OLS-3697] Service-CA cert for RHOKP service | Volume + VolumeMount (CA bundle mounted directly) |
 | Resource defaults | Operator defaults (per OpenShift resource conventions) | Container resources |
 
 The base PodSpec does NOT include per-run config — that is the agentic operator's responsibility.

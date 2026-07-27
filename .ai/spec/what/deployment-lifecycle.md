@@ -28,7 +28,7 @@ The Kubernetes operator that deploys and manages all OpenShift Lightspeed compon
 9. **Console UI**: Single-replica nginx deployment. The operator uses a single console image regardless of OCP minor version. ConsolePlugin CR created and activated in the Console CR.
 10. **PostgreSQL**: Single-replica database deployment. TLS certificates provisioned via the service-ca operator.
 11. **App Server**: FastAPI application deployment with:
-    - RHOKP sidecar (always deployed; serves OKP content via Solr HTTP on localhost:8080; requires ~75 GiB ephemeral storage). Not deployed when `byokRAGOnly` is true.
+    - [PLANNED: OLS-3697] RHOKP standalone Deployment/Service (`lightspeed-rhokp`) — serves OKP content via Solr HTTPS on port 8443; requires ~75 GiB EmptyDir. Reconciled before app-server. Not deployed when `byokRAGOnly` is true.
     - Data collector sidecar (if feedback/transcripts enabled and telemetry secret exists)
     - OpenShift MCP server standalone Deployment/Service (if introspection enabled)
     - BYOK RAG init containers (copy customer index content from OCI image to shared volume, when `spec.ols.rag` configured)
@@ -37,7 +37,7 @@ The Kubernetes operator that deploys and manages all OpenShift Lightspeed compon
 
 ### Resource Conventions [OLS-3397]
 
-11c. All operator-managed container defaults follow the [OpenShift resource conventions](https://github.com/openshift/enhancements/blob/master/CONVENTIONS.md#resources-and-limits): defaults declare CPU and memory requests only, and do not set resource limits. This applies to all containers across all deployments (Console UI, PostgreSQL, App Server and its sidecars). Users may override via the CRD to set limits if their environment requires it. The RHOKP sidecar's ~75 GiB ephemeral storage requirement is unaffected by this convention.
+11c. All operator-managed container defaults follow the [OpenShift resource conventions](https://github.com/openshift/enhancements/blob/master/CONVENTIONS.md#resources-and-limits): defaults declare CPU and memory requests only, and do not set resource limits. This applies to all containers across all deployments (Console UI, PostgreSQL, App Server and its sidecars, standalone RHOKP, standalone MCP). Users may override via the CRD to set limits if their environment requires it. [PLANNED: OLS-3697] The RHOKP standalone Deployment's ~75 GiB EmptyDir sizeLimit is unaffected by this convention.
 
 ### External Resource Watching
 
@@ -82,7 +82,7 @@ When an external resource changes, the operator sets `ols.openshift.io/force-rel
 
 ### Operator Image Flags
 
-The operator accepts image overrides at startup: `--service-image`, `--console-image`, `--postgres-image`, `--openshift-mcp-server-image`, `--dataverse-exporter-image`, `--rhokp-image`, `--alerts-adapter-image` [PLANNED: OLS-3236], `--agentic-console-image` [PLANNED: OLS-3236].
+The operator accepts image overrides at startup: `--service-image`, `--console-image`, `--postgres-image`, `--openshift-mcp-server-image`, `--dataverse-exporter-image`, `--rhokp-image` [used for standalone RHOKP Deployment, OLS-3697], `--alerts-adapter-image` [PLANNED: OLS-3236], `--agentic-console-image` [PLANNED: OLS-3236].
 
 ## Repo Ownership
 
@@ -100,3 +100,4 @@ The operator accepts image overrides at startup: `--service-image`, `--console-i
 |---|---|
 | OLS-3236 | Deploy agentic-alerts-adapter and agentic-console-plugin as reconciled operands of the lightspeed-operator. Migrate agentic-console deployment from agentic-operator. |
 | OLS-3397 | Remove default resource limits from all operator-managed containers per OpenShift conventions. Keep requests only. CRD still accepts user-specified limits. |
+| OLS-3697 | RHOKP standalone HTTPS cutover — sidecar replaced by `lightspeed-rhokp` Deployment/Service. ServiceMonitors added for RHOKP and MCP. |

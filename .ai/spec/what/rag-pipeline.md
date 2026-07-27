@@ -6,8 +6,8 @@ Dual-architecture retrieval system: OKP (Red Hat product docs via Solr hybrid se
 
 ### A) OKP Flow (OCP Product Docs) — Runtime Retrieval
 
-1. The operator always deploys an RHOKP sidecar container alongside the app-server pod. RHOKP serves Red Hat knowledge content (OCP docs, errata, runbooks) via a Solr HTTP API on localhost:8080.
-2. The operator generates `solr_hybrid` config in `olsconfig.yaml` pointing to the RHOKP sidecar.
+1. [PLANNED: OLS-3697] The operator deploys a standalone RHOKP Deployment (`lightspeed-rhokp`) with a ClusterIP Service on HTTPS port 8443. RHOKP serves Red Hat knowledge content (OCP docs, errata, runbooks) via a Solr HTTP API, now accessible to any pod in the operator namespace (app-server, agentic sandbox). TLS is provided by OpenShift service-ca.
+2. The operator generates `solr_hybrid` config in `olsconfig.yaml` pointing to the standalone RHOKP Service (`https://lightspeed-rhokp.<ns>.svc:8443`).
 3. At startup, the service initializes a `SolrHybridSearch` client with the configured Solr HTTP base URL and loads the `ibm-granite/granite-embedding-30m-english` embedding model for query vectorization.
 4. At query time, the `search_openshift_documentation` LangChain tool is registered. The LLM decides when to invoke it.
 5. When invoked, the tool normalizes the query (stop-word removal, hyphenated-term quoting), embeds it with the granite model, and POSTs a hybrid-search request to Solr.
@@ -30,13 +30,13 @@ Dual-architecture retrieval system: OKP (Red Hat product docs via Solr hybrid se
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `http://localhost:8080/solr/portal-rag/hybrid-search` | POST | Hybrid search (lexical + KNN vector reranking) |
+| `https://lightspeed-rhokp.<ns>.svc:8443/solr/portal-rag/hybrid-search` | POST | [PLANNED: OLS-3697] Hybrid search (lexical + KNN vector reranking) via HTTPS |
 
 ### OKP Configuration (olsconfig.yaml)
 
 | Field | Purpose |
 |---|---|
-| `ols_config.solr_hybrid.url` | Solr HTTP base URL (operator-generated, always `http://localhost:8080`) |
+| `ols_config.solr_hybrid.url` | Solr HTTPS base URL (operator-generated, `https://lightspeed-rhokp.<ns>.svc:8443`) [PLANNED: OLS-3697] |
 | `ols_config.solr_hybrid.max_results` | Maximum passages returned per query |
 | `ols_config.solr_hybrid.score_threshold` | Minimum score for passage inclusion |
 
@@ -84,7 +84,7 @@ Both models are bundled in the service image. [PLANNED] Ask OKP team if server-s
 |---|---|
 | **lightspeed-rag-content** | BYOK tool image only. Main RAG content image deprecated. |
 | **lightspeed-service** | BYOK index loading, OKP tool registration, Solr hybrid search client, query embedding (granite + mpnet), score filtering, deduplication, readiness probe integration |
-| **lightspeed-operator** | RHOKP sidecar deployment, `solr_hybrid` config generation, BYOK init container setup, embeddings model path configuration |
+| **lightspeed-operator** | [PLANNED: OLS-3697] RHOKP standalone Deployment/Service, `solr_hybrid` config generation, BYOK init container setup, embeddings model path configuration |
 
 ## Planned Changes
 
@@ -93,5 +93,6 @@ Both models are bundled in the service image. [PLANNED] Ask OKP team if server-s
 | OLS-2704 | RAG as service / MCP interface |
 | OCPSTRAT-1492 | Layered product knowledge (CNV, ACM, RHOSO) |
 | OLS-1872 | BYOK Phase 2: one-click import from Git/Confluence |
+| OLS-3697 | RHOKP standalone HTTPS Deployment — sidecar replaced by `lightspeed-rhokp` Service, TLS via service-ca, ServiceMonitor for Solr metrics |
 | — | Multi-product OKP filtering (RFE pending with OKP product) |
 | — | Multi-version OKP support (RFE pending with OKP product) |
