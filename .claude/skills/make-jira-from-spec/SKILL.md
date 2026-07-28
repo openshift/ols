@@ -426,13 +426,8 @@ estimated at more than 5 SP:
 ### 8a. Brainstorm the split
 
 Use `superpowers:brainstorming` to break the oversized story
-into smaller stories, each targeting ≤ 3 SP.
-
-Consider whether the split produces enough scope and
-cohesion to warrant a **new sibling Epic**. If the original
-parent is already an Epic and the split stories form a
-distinct workstream, create a new Epic as a sibling.
-Otherwise, keep the smaller stories under the same parent.
+into smaller stories under the same parent, each targeting
+≤ 3 SP.
 
 ### 8b. Present split for approval
 
@@ -443,7 +438,7 @@ Story OLS-1002 estimated at 8 SP — splitting:
 |---|----------------------------|----------|
 | 1 | {sub-story 1}              | OLS-2001 |
 | 2 | {sub-story 2}              | OLS-2001 |
-| 3 | {sub-story 3}              | OLS-2002 (new Epic) |
+| 3 | {sub-story 3}              | OLS-2001 |
 
 Options:
   approve — create the split
@@ -456,20 +451,19 @@ Options:
 
 Follow the same creation procedure as Step 6:
 
-1. Create new Epic (if proposed) via `createJiraIssue` —
-   include inherited labels via `additional_fields`
-2. Create the smaller stories via `createJiraIssue` —
-   include inherited labels via `additional_fields`
-3. Transition every newly created item to **Refinement**
+1. Create the smaller stories via `createJiraIssue` under
+   the same parent — include inherited labels via
+   `additional_fields`
+2. Transition every newly created story to **Refinement**
    (transition ID `31`), then verify the status. If still
    New after the first attempt, retry once. If it fails
    again (two attempts total), report the error and
    continue.
-4. Close or update the original oversized story — add a
+3. Close or update the original oversized story — add a
    comment noting it was split, link to the new stories
-5. Re-run `/estimate-story` and `/estimate-risk` on the new
+4. Re-run `/estimate-story` and `/estimate-risk` on the new
    stories
-6. Re-run `/estimate-epic` on all affected Epics
+5. Re-run `/estimate-epic` on the parent Epic
 
 ## Step 9: Report
 
