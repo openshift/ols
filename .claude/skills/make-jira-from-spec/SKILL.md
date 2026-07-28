@@ -284,9 +284,9 @@ Create Epics first, then Stories (so Stories can reference
 their parent Epic).
 
 Parent items under the resolved parent (the Epic confirmed
-in Step 3 — never a Feature Request). When labels were
-inherited from a Feature Request, pass them via
-`additional_fields`:
+in Step 3 — never a Feature Request). Pass inherited labels
+via `additional_fields` (omit the field if no labels were
+fetched in the label inheritance step):
 
 ```
 createJiraIssue:
@@ -297,8 +297,8 @@ createJiraIssue:
   description: "{markdown description with AC}"
   contentFormat: "markdown"
   parent: "{parent key}"
-  additional_fields:          # only when labels inherited
-    labels: ["{label1}", ...]
+  additional_fields:
+    labels: ["{inherited labels}"]
 ```
 
 **MANDATORY — transition every created item immediately.**
