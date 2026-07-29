@@ -94,11 +94,27 @@ context. The brainstorming session should produce:
 - Summary and Acceptance Criteria for each item
 - Which items map to existing Jira issues (if a parent was
   provided)
+- **What e2e / integration test stories are needed** — every
+  implementation story MUST have a corresponding test story
+  (or test AC within the story itself).
 
 Feed the brainstorming session with:
 - The full spec content (not just the diff)
 - The diff showing what changed
 - The existing Jira parent and its children (if known)
+- An explicit prompt: *"For each implementation story,
+  identify what e2e or integration tests are needed. Create
+  separate test stories when the testing effort is non-trivial
+  (new test fixtures, new test scenarios, cross-repo
+  validation). Include test criteria in the AC of the
+  implementation story when the test is a straightforward
+  extension of existing tests."*
+
+**Test coverage gate.** If the brainstorming output includes
+implementation stories without test coverage, do NOT proceed
+to Step 3. Present the gap to the user and ask whether to
+add test stories, add test AC, or explicitly waive testing
+for those items.
 
 The brainstorming output is the proposed work breakdown —
 it is NOT yet approved for Jira creation.
@@ -108,10 +124,8 @@ it is NOT yet approved for Jira creation.
 Determine the parent for new Stories based on what the
 user provided as the starting context.
 
-**Do NOT create Epics or Stories under Feature Requests.**
-A Feature Request is a source of context, not a parent
-container. The skill creates Epics under a Feature and
-Stories under an Epic.
+**Do NOT create Epics under Feature Requests.** The skill
+creates Epics under a Feature and Stories under an Epic.
 
 ### 3a. Starting context is an Epic
 
@@ -143,15 +157,10 @@ searchJiraIssuesUsingJql:
 
 ### 3c. Starting context is a Feature Request, or no Jira key provided
 
-Neither Epics nor Stories may be parented under a Feature
-Request. A Feature Request is only a source of context.
-Find or create an Epic as the parent for Stories.
-
-**Step 1 — Search for related open Epics.** Extract key
-terms from the Feature Request summary and the proposed
-stories. Strip JQL reserved characters (`-`, `(`, `)`,
-`[`, `]`, `"`, `'`, `+`, `&`, `|`, `!`, `{`, `}`) from
-the search terms before building the query:
+Search for existing open Epics by keyword from the Feature
+Request summary. Strip JQL reserved characters (`-`, `(`,
+`)`, `[`, `]`, `"`, `'`, `+`, `&`, `|`, `!`, `{`, `}`)
+from the search terms before building the query:
 
 ```
 searchJiraIssuesUsingJql:
@@ -160,44 +169,29 @@ searchJiraIssuesUsingJql:
     project = OLS
     AND issuetype = Epic
     AND resolution = Unresolved
-    AND summary ~ "{escaped key terms}"
-  fields: ["summary", "status"]
-  maxResults: 20
+    AND summary ~ "{escaped keywords}"
+  fields: ["summary", "status", "labels"]
+  maxResults: 10
 ```
 
-Run multiple queries if the proposed stories span different
-areas — use the most distinctive terms from each story
-cluster, not generic words like "OLS" or "support".
-
-**Step 2 — Present candidates.** If matching Epics are
-found, present them to the user:
+Present the candidates to the user:
 
 ```
-I found these open Epics that may fit:
+Found existing Epics that may match:
 
-| #  | Key      | Summary                         | Status      |
-|----|----------|---------------------------------|-------------|
-| 1  | OLS-XXXX | {summary}                       | {status}    |
-| 2  | OLS-YYYY | {summary}                       | {status}    |
+| # | Key      | Summary                         | Status     |
+|---|----------|---------------------------------|------------|
+| 1 | OLS-2001 | {summary}                       | Refinement |
+| 2 | OLS-2005 | {summary}                       | In Progress|
 
 Options:
-  1/2/… — use that Epic as parent
-  new   — create a new Epic (I'll ask for details)
-  other — provide a different Epic key
+  1, 2, ... — use this Epic as the parent
+  new      — create a new Epic (will be top-level, no parent)
+  key      — enter a different Epic key
 ```
 
-**Step 3 — No matches found.** If no related Epics exist,
-tell the user and ask:
-
-```
-No open Epics match these stories. Options:
-  new   — create a new Epic (I'll draft summary & scope)
-  key   — provide an existing Epic key (e.g. OLS-1234)
-```
-
-**Wait for the user.** Do NOT create Epics or Stories
-without a confirmed parent. Do NOT parent anything under
-the Feature Request.
+**Wait for user confirmation.** Do NOT proceed without a
+confirmed parent Epic.
 
 When the user chooses "new", the Epic is created as a
 top-level item (no parent). This is the one exception to
@@ -235,19 +229,45 @@ Parent: {PARENT_KEY} — {parent summary}
 
 ## New Items
 
-| # | Type  | Summary                    | AC count |
-|---|-------|----------------------------|----------|
-| 1 | Epic  | {summary}                  | —        |
-| 2 | Story | {summary}                  | 4        |
-| 3 | Story | {summary}                  | 3        |
+| # | Type  | Summary                    | AC count | Test |
+|---|-------|----------------------------|----------|------|
+| 1 | Epic  | {summary}                  | —        | —    |
+| 2 | Story | {summary}                  | 4        | AC   |
+| 3 | Story | {summary}                  | 3        | #4   |
+| 4 | Story | e2e: {test summary}        | 3        | covers #2,#3 |
 
 ## Updates to Existing Items
 
-| Key      | Change                              |
-|----------|-------------------------------------|
-| OLS-1234 | Update AC to reflect new constraint |
-| OLS-1235 | Add scope from new spec section     |
+| Key      | Change                              | Test |
+|----------|-------------------------------------|------|
+| OLS-1234 | Update AC to reflect new constraint | AC   |
+| OLS-1235 | Add scope from new spec section     | #4   |
 
+**Test column values:**
+- `AC` — test criteria are in the story's own acceptance criteria
+- `#N` — covered by a dedicated test story (row N)
+- `covers #N` — this IS the test story covering row N
+- `—` — not applicable (Epics only)
+- `NONE` — **gap: no test coverage.** Must be resolved before approval.
+
+If any implementation story shows `NONE`, flag it and
+change the approval options:
+
+```
+⚠ Test coverage gaps:
+  - Story #3 "{summary}" has no test coverage.
+    → Add test AC, create a test story, or justify why
+      no test is needed.
+
+Options:
+  approve-with-gaps — create all items, leaving test gaps
+  revise            — add test coverage first
+  stop              — cancel
+```
+
+When no stories show `NONE`, use the standard options:
+
+```
 Options:
   approve — create/update all items in Jira
   revise  — tell me what to change
@@ -255,7 +275,9 @@ Options:
 ```
 
 **Wait for the user.** Do NOT touch Jira without explicit
-approval.
+approval. The `approve` option is only available when all
+stories have test coverage. If gaps exist, only
+`approve-with-gaps` may proceed.
 
 ## Step 6: Execute in Jira
 
@@ -265,8 +287,8 @@ calling `getAccessibleAtlassianResources` and picking the
 
 ### Label inheritance
 
-When the starting context is a **Feature Request** or
-**Feature**, fetch its labels before creating any items:
+If the starting context is a Feature Request or Feature,
+fetch its labels:
 
 ```
 getJiraIssue:
@@ -275,18 +297,13 @@ getJiraIssue:
   fields: ["labels"]
 ```
 
-Store the labels list. Every Epic and Story created or
-updated in this run must carry these labels.
+These labels are passed via `additional_fields` on every
+`createJiraIssue` call below — both Epics and Stories.
 
 ### Creating items
 
 Create Epics first, then Stories (so Stories can reference
 their parent Epic).
-
-Parent items under the resolved parent (the Epic confirmed
-in Step 3 — never a Feature Request). Pass inherited labels
-via `additional_fields` (omit the field if no labels were
-fetched in the label inheritance step):
 
 ```
 createJiraIssue:
@@ -301,12 +318,8 @@ createJiraIssue:
     labels: ["{inherited labels}"]
 ```
 
-**MANDATORY — transition every created item immediately.**
-Do NOT proceed to the next item until the transition is
-confirmed. This is the most commonly skipped step — treat
-it as part of the creation, not a follow-up.
-
-For **each** created item, immediately call:
+Immediately after creating each item, transition it from
+**New** to **Refinement** (transition ID `31`):
 
 ```
 transitionJiraIssue:
@@ -316,7 +329,7 @@ transitionJiraIssue:
     id: "31"
 ```
 
-Then verify the status changed:
+Then **verify** the transition succeeded:
 
 ```
 getJiraIssue:
@@ -325,13 +338,12 @@ getJiraIssue:
   fields: ["status"]
 ```
 
-The status must be **Refinement**. If it is still **New**,
-retry the transition once. If the status is still New after
-the retry (two attempts total), report the error to the
-user — do not silently continue.
+If the status is still New after the first attempt, retry
+the transition once. If it fails again (two attempts total),
+report the error to the user and continue with the next item.
 
-This applies to every created Epic and Story without
-exception. No item may be left in New status.
+This applies to every created Epic and Story. Do not leave
+any item in New status.
 
 ### Updating items
 
@@ -370,6 +382,17 @@ As a {persona}, I want {goal} so that {benefit}.
 
 - {AC 1}
 - {AC 2}
+
+## Testing
+
+<!-- Pick exactly one line. Delete the rest. -->
+e2e: {what e2e test verifies this story}
+integration: {what integration test verifies this story}
+Covered by OLS-XXXX (dedicated test story)
+Covers: OLS-XXXX (this IS the test story for that item)
+Unit tests only — no user-facing behavior change
+
+<!-- Omit this section only for Epics. -->
 
 ## Spec Reference
 
@@ -426,8 +449,13 @@ estimated at more than 5 SP:
 ### 8a. Brainstorm the split
 
 Use `superpowers:brainstorming` to break the oversized story
-into smaller stories under the same parent, each targeting
-≤ 3 SP.
+into smaller stories, each targeting ≤ 3 SP.
+
+Consider whether the split produces enough scope and
+cohesion to warrant a **new sibling Epic**. If the original
+parent is already an Epic and the split stories form a
+distinct workstream, create a new Epic as a sibling.
+Otherwise, keep the smaller stories under the same parent.
 
 ### 8b. Present split for approval
 
@@ -438,7 +466,7 @@ Story OLS-1002 estimated at 8 SP — splitting:
 |---|----------------------------|----------|
 | 1 | {sub-story 1}              | OLS-2001 |
 | 2 | {sub-story 2}              | OLS-2001 |
-| 3 | {sub-story 3}              | OLS-2001 |
+| 3 | {sub-story 3}              | OLS-2002 (new Epic) |
 
 Options:
   approve — create the split
@@ -451,19 +479,20 @@ Options:
 
 Follow the same creation procedure as Step 6:
 
-1. Create the smaller stories via `createJiraIssue` under
-   the same parent — include inherited labels via
-   `additional_fields`
-2. Transition every newly created story to **Refinement**
+1. Create new Epic (if proposed) via `createJiraIssue` —
+   include inherited labels via `additional_fields`
+2. Create the smaller stories via `createJiraIssue` —
+   include inherited labels via `additional_fields`
+3. Transition every newly created item to **Refinement**
    (transition ID `31`), then verify the status. If still
    New after the first attempt, retry once. If it fails
    again (two attempts total), report the error and
    continue.
-3. Close or update the original oversized story — add a
+4. Close or update the original oversized story — add a
    comment noting it was split, link to the new stories
-4. Re-run `/estimate-story` and `/estimate-risk` on the new
+5. Re-run `/estimate-story` and `/estimate-risk` on the new
    stories
-5. Re-run `/estimate-epic` on the parent Epic
+6. Re-run `/estimate-epic` on all affected Epics
 
 ## Step 9: Report
 
@@ -482,13 +511,12 @@ addCommentToJiraIssue:
     Work items created from this Feature Request:
 
     Epics:
-    - OLS-XXXX — {epic summary}
+    - OLS-2001 — {epic summary}
 
     Stories:
-    - OLS-YYYY — {story summary} (under OLS-XXXX)
-    - OLS-ZZZZ — {story summary} (under OLS-XXXX)
+    - OLS-1001 — {story summary}
+    - OLS-1002 — {story summary}
 
-    Source: {spec file path(s)}
     Created by make-jira-from-spec.
   contentFormat: "markdown"
 ```
@@ -500,12 +528,13 @@ Print a summary table of everything created and updated:
 ```
 ## Summary
 
-| Key      | Type  | Summary              | SP | Risk | Status  |
-|----------|-------|----------------------|----|------|---------|
-| OLS-2001 | Epic  | {summary}            | —  | —    | Created |
-| OLS-1001 | Story | {summary}            | 3  | 2    | Created |
-| OLS-1002 | Story | {summary}            | 2  | 1    | Created |
-| OLS-1234 | Story | {summary}            | 3  | 2    | Updated |
+| Key      | Type  | Summary              | SP | Risk | Test | Status  |
+|----------|-------|----------------------|----|------|------|---------|
+| OLS-2001 | Epic  | {summary}            | —  | —    | —    | Created |
+| OLS-1001 | Story | {summary}            | 3  | 2    | AC   | Created |
+| OLS-1002 | Story | {summary}            | 2  | 1    | #1003| Created |
+| OLS-1003 | Story | e2e: {test summary}  | 2  | 1    | covers #1002 | Created |
+| OLS-1234 | Story | {summary}            | 3  | 2    | AC   | Updated |
 
 Epics sized: OLS-2001 → S (15 SP)
 
@@ -551,3 +580,9 @@ Spec sources:
 - **JQL escaping** — strip reserved characters (`-`, `(`,
   `)`, `[`, `]`, `"`, `'`, `+`, `&`, `|`, `!`, `{`, `}`)
   from search terms before building JQL queries.
+- **Test coverage required** — every implementation story
+  must have test coverage: either test criteria in its own
+  AC, a dedicated test story, or an explicit user waiver
+  via `approve-with-gaps`. Flag gaps in Step 5. The
+  `approve` option is only available when all stories have
+  coverage.
