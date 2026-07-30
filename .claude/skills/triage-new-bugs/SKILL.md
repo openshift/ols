@@ -67,8 +67,9 @@ Read all discovered index files. This gives you a map of:
 - Which repos and components own which concerns
 
 Hold this map in context. You will read individual spec files on demand in
-Step 5, not upfront. If you have already read a spec file earlier in the run
-for a previous bug, you do not need to re-read it for subsequent bugs.
+Step 5, not upfront. If you have already read a spec file within the last 5
+bugs, you do not need to re-read it. Beyond that window, re-read the file —
+context compression may have evicted earlier content.
 
 ## Step 3: Fetch New Bugs
 
@@ -117,7 +118,9 @@ file and check.
 classify based on the spec map or bug description alone. When reading, explicitly
 check for rules that CONTRADICT the desired behavior described in the bug — a
 spec rule that explicitly excludes or prohibits a behavior is criterion 1 even
-if the fix appears to be a localized code change.
+if the fix appears to be a localized code change. Conversely, if the spec
+correctly defines the behavior and the bug reports the implementation fails to
+match it, that is `no-spec-change-needed` — the spec is not wrong, the code is.
 
 ### 5b. Apply the three-criterion test
 
@@ -140,6 +143,10 @@ and explain why in the reasoning.
 **Empty description:** A bug has no description if its `description` field is
 `null`, empty string, or contains only whitespace. Classify as **needinfo**.
 
+**Needinfo guard:** Do not classify as needinfo solely to avoid the evidence
+requirement. Needinfo is only for bugs where the description genuinely lacks
+enough detail to identify the affected behavior.
+
 **Spec evidence requirement:** Every `needs-spec-change` or `no-spec-change-needed`
 classification must include a verbatim excerpt from the spec file (not a
 paraphrase, and not from the bug description — bug descriptions may contain
@@ -151,9 +158,16 @@ inaccurate or outdated spec references). The evidence depends on the criterion:
   file and section heading where you expected to find coverage and confirm it
   is absent. E.g., "Searched `sandbox-execution.md` sections 'Prompt
   Construction' and 'Agent Configuration' — no rule addresses tool awareness."
+  If no spec file covers this area at all: "No spec file in any repo addresses
+  [topic]. The closest candidate was `[file]`, which covers [related-topic]
+  but not this behavior."
 - **no-spec-change-needed**: quote the passage that correctly handles the
-  behavior, or name the spec file(s) you searched and confirm no relevant
-  rule exists (meaning the behavior is purely internal implementation).
+  behavior, OR — if no relevant rule exists — name the spec file(s) you
+  searched, confirm absence, and explicitly justify why the behavior is purely
+  internal implementation rather than spec-worthy. E.g., "This affects only
+  the internal retry logic of a single function and has no observable product
+  behavior or cross-component contract implications." Absence alone is not
+  sufficient — the justification is required.
 
 If you cannot provide any of the above, you have not read the file — go back
 and read it before classifying.
@@ -172,12 +186,17 @@ required and assign exactly one additional label:
 
 Draft a comment for every bug. Format:
 
-**needs-spec-change:**
+**needs-spec-change (criterion 1 or 3 — contradicts or changes a defined rule):**
 > AI triage: This bug requires a spec update. [State which criterion applies
 > and what the conflict or gap is.] The relevant spec is
-> `[repo]/.ai/spec/[file]`. Spec evidence: [verbatim quote of the contradicted
-> rule, OR "Searched [file], sections [X] and [Y] — no rule addresses [topic]"
-> for criterion 2 gaps]. Flagging for spec review before implementation begins.
+> `[repo]/.ai/spec/[file]`. Spec evidence: "[verbatim quote of contradicted rule]"
+> (from [file], section [heading]). Flagging for spec review before implementation begins.
+
+**needs-spec-change (criterion 2 — behavior should be specced but is absent):**
+> AI triage: This bug requires a spec update. Criterion 2: this behavior should
+> be specced but is absent from all spec files. The closest candidate was
+> `[repo]/.ai/spec/[file]`. Spec evidence: Searched [file], sections [X] and [Y]
+> — no rule addresses [topic]. Flagging for spec review before implementation begins.
 
 **needinfo:**
 > AI triage: This bug report lacks sufficient detail to determine whether a
@@ -202,7 +221,7 @@ Show the full analysis before touching Jira:
 ### Needs Spec Change (X bugs) → Backlog + labels
 | Key | Summary | Criterion triggered | Scope | Relevant spec | Spec evidence |
 |-----|---------|--------------------| ------|---------------|---------------|
-| OLS-1234 | ... | Contradicts rule in ... | ols-team | repo/.ai/spec/... | "verbatim quote" or "Absence confirmed in [section]" |
+| OLS-1234 | ... | Contradicts rule in ... | ols-team | repo/.ai/spec/... | See draft comment |
 
 Draft comment for OLS-1234:
 > [full draft comment text]
@@ -222,7 +241,7 @@ Draft comment for OLS-1235:
 ### No Spec Change Needed (Z bugs) → Refinement
 | Key | Summary | Reason | Spec evidence |
 |-----|---------|--------|---------------|
-| OLS-1236 | ... | Implementation error; spec correctly defines behavior | "verbatim quote" or "No relevant rule in [file]" |
+| OLS-1236 | ... | Implementation error; spec correctly defines behavior | See draft comment |
 
 Draft comment for OLS-1236:
 > [full draft comment text]
