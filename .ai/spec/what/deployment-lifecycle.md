@@ -76,6 +76,15 @@ The Kubernetes operator that deploys and manages all OpenShift Lightspeed compon
 | MCP config | MCP server list with URLs, timeouts, header sources | App server |
 | Nginx config | Console plugin nginx configuration | Console deployment |
 
+### TLS Certificate Verification
+
+The service verifies TLS certificates for all outbound LLM provider connections. Two paths exist:
+
+1. **No TLS security profile configured** — the service uses Python's `ssl.create_default_context()`, which enables both certificate chain and hostname verification by default. When a custom certificate store is configured (`certificates_store`), the CA bundle is loaded into the context without disabling hostname checks.
+2. **TLS security profile configured** — the operator propagates the profile (ciphers, minimum TLS version) from the `OLSConfig` CR into `olsconfig.yaml`. The service constructs an `ssl.SSLContext` with the specified constraints and hostname verification enabled.
+
+Both paths enforce hostname verification. Disabling `check_hostname` is not permitted — connections to LLM providers must validate that the server certificate matches the requested host.
+
 ### Restart Trigger
 
 When an external resource changes, the operator sets `ols.openshift.io/force-reload` on the pod template to an RFC3339Nano timestamp, causing a rolling update.
