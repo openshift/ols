@@ -40,6 +40,7 @@ AI agents. Content is optimized for precision and machine consumption.
 - **Planned changes:** unimplemented behavior is marked with `[PLANNED]` or `[PLANNED: TICKET-XXXX]` inline next to the rule it affects.
 - **Authority:** what/ specs are authoritative for behavior. how/ specs are authoritative for implementation. When they conflict, what/ wins.
 - **Child spec authority:** for repo-internal behavior, the child repo's `.ai/spec/` is authoritative. This parent spec is authoritative for cross-repo integration contracts and product-level behavior.
+- **Constraints:** cross-repo constraints live in `constraints.md`. Component-specific constraints go in the relevant what/ file's Constraints section.
 
 ## Updating this spec
 
