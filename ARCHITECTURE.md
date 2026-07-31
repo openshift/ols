@@ -1,8 +1,31 @@
 # OpenShift Lightspeed — Architecture
 
-OpenShift Lightspeed (OLS) is an AI-powered assistant for OpenShift clusters. It answers operator questions using LLM backends augmented with retrieval from product documentation (RAG), and can execute autonomous agentic workflows to diagnose and remediate cluster issues. A multicluster hub layer extends these capabilities across a fleet of clusters.
+OpenShift Lightspeed (OLS) is an AI-powered platform for OpenShift clusters, composed of two LLM-backed subsystems:
 
-The system spans 13 repositories organized into three product layers plus shared tooling.
+- **Classic OLS** — an interactive Q&A assistant. Cluster administrators ask questions through the OpenShift console; the service routes them to configurable LLM providers (OpenAI, Azure, Anthropic, Gemini, Bedrock, WatsonX, RHELAI/vLLM), augments responses with retrieval from Red Hat product documentation (OKP/Solr hybrid search) and customer-supplied content (BYOK FAISS indexes), and can invoke external tools via MCP servers for live cluster introspection.
+
+- **Agentic OLS** — an autonomous cluster management assistant. Triggered by AlertManager alerts, external integrations, or manual requests, it runs multi-phase workflows — analysis, remediation, and verification — powered by LLM reasoning. Per-action human approval gates ensure no cluster mutation happens without explicit cluster-admin consent.
+
+A planned multicluster hub layer will extend both subsystems across a fleet of clusters.
+
+The platform is built from the following core components:
+
+- **lightspeed-operator** — central Kubernetes operator that configures the overall platform via the `OLSConfig` CRD, deploys and manages platform components (service, RHOKP, PostgreSQL, MCP server, OTel collector, console plugins, alerts adapter), and passes configuration to both the Classic OLS service and the agentic subsystem via generated ConfigMaps.
+- **lightspeed-service** — implements the Classic OLS assistant as a FastAPI service. Handles the query pipeline, LLM provider integration, RAG retrieval, and MCP tool execution. Exposes a REST/SSE streaming API consumed by the console plugin.
+- **lightspeed-agentic-operator** — the Agentic OLS workflow engine. Implements the autonomous workflow lifecycle (analysis → approval → execution → verification), provisioning ephemeral sandbox pods for each phase. Built as a Kubernetes operator.
+- **lightspeed-agentic-sandbox** — ephemeral multi-provider LLM runtime that executes analysis, remediation, and verification phases inside isolated pods.
+- **lightspeed-console** — OpenShift console plugin providing the Classic OLS chat interface.
+- **lightspeed-agentic-console** — OpenShift console plugin providing the AI Hub UI for agentic workflow monitoring, approval, and escalation management.
+
+Supporting components:
+
+- **PostgreSQL** — overall persistence layer, used for conversation cache, token quota tracking, and templog audit storage.
+- **RHOKP** — Red Hat product documentation served via Solr hybrid search (lexical + KNN vector reranking).
+- **OpenShift MCP Server** — standalone HTTPS service for live cluster introspection via MCP protocol (Kubernetes resources, Helm, Prometheus metrics).
+- **OTel Collector** — custom OpenTelemetry collector for fleet telemetry forwarding and templog audit storage in PostgreSQL.
+- **Alerts adapter** — bridges AlertManager to the agentic system by polling firing alerts, deduplicating, and creating AgenticRun CRs.
+
+The system spans 13 repositories organized into three layers (classic, agentic, multicluster) plus shared tooling.
 
 > For machine-readable behavioral specs, see [`.ai/spec/`](.ai/spec/README.md). This document is a human-facing overview.
 >
@@ -89,7 +112,7 @@ sequenceDiagram
     participant U as User
     participant C as Console Plugin
     participant S as Service (FastAPI)
-    participant OKP as RHOKP Sidecar (Solr)
+    participant OKP as RHOKP (Solr)
     participant LLM as LLM Provider
     participant MCP as MCP Tools
     participant PG as PostgreSQL (or in-memory)
@@ -285,10 +308,10 @@ graph TB
 
         subgraph app_pod ["App Server Pod"]
             app[lightspeed-service]
-            rhokp["RHOKP sidecar (Solr)<br/>~75 GiB ephemeral"]
             dc_sidecar["Data collector sidecar<br/>(if telemetry enabled)"]
         end
 
+        rhokp_pod["RHOKP Pod (Solr)<br/>~75 GiB EmptyDir"]
         mcp_pod["OpenShift MCP Server<br/>(if introspection enabled)"]
         console_pod[Console Plugin Pod]
         pg_pod["PostgreSQL Pod"]
@@ -307,6 +330,7 @@ graph TB
     op -->|deploys| app_pod
     op -->|deploys| console_pod
     op -->|deploys| pg_pod
+    op -->|deploys| rhokp_pod
     op -->|deploys| mcp_pod
     op -->|deploys| otel_pod
     op -->|deploys| adapter_pod
@@ -318,7 +342,7 @@ graph TB
 ```
 
 > **Note:** The alerts adapter and agentic console are deployed by the lightspeed-operator. `[PLANNED: OLS-3236]` will add status conditions (`AlertsAdapterReady`, `AgenticConsolePluginReady`) and image override flags.
-> The RHOKP sidecar is omitted when `byokRAGOnly` is set to true in the OLSConfig CR.
+> The RHOKP standalone Deployment is omitted when `byokRAGOnly` is set to true in the OLSConfig CR.
 
 ---
 
@@ -379,7 +403,7 @@ graph LR
 
 ## RAG Architecture
 
-Two retrieval paths serve different content sources with different embedding models. OKP provides Red Hat product documentation via a Solr sidecar; BYOK lets customers index their own Markdown content into FAISS.
+Two retrieval paths serve different content sources with different embedding models. OKP provides Red Hat product documentation via a standalone Solr service; BYOK lets customers index their own Markdown content into FAISS.
 
 | Path | Embedding Model | Dimensions | Retrieval |
 |------|----------------|------------|-----------|
@@ -391,7 +415,7 @@ The embedding model used to build indexes must be identical to the model used at
 ```mermaid
 graph LR
     subgraph okp ["OKP Path (Product Docs)"]
-        RHOKP["RHOKP Sidecar<br/>Solr hybrid search"]
+        RHOKP["RHOKP Service<br/>Solr hybrid search"]
     end
 
     subgraph byok ["BYOK Path (Customer Content)"]
@@ -443,7 +467,7 @@ graph LR
 
 - **Single operator, multiple operands.** The `lightspeed-operator` deploys the entire Classic OLS stack from one `OLSConfig` CR — no per-component operators. This reduces operational surface: one upgrade, one status, one set of RBAC. The operator also deploys the alerts adapter and agentic console as reconciled operands. `[PLANNED: OLS-3236]` will add dedicated status conditions and image override flags for these agentic operands.
 
-- **OKP for Red Hat knowledge, BYOK for customer content.** OCP docs, errata, and runbooks are served by the RHOKP sidecar (Solr hybrid search), not bundled FAISS indexes. Solr hybrid search combines lexical recall (edismax) with semantic reranking (KNN), outperforming pure vector search on structured technical documentation. The RHOKP sidecar is not deployed when `byokRAGOnly` is true. Customers bring their own content via the BYOK tool image and FAISS.
+- **OKP for Red Hat knowledge, BYOK for customer content.** OCP docs, errata, and runbooks are served by the standalone RHOKP service (Solr hybrid search), not bundled FAISS indexes. Solr hybrid search combines lexical recall (edismax) with semantic reranking (KNN), outperforming pure vector search on structured technical documentation. The RHOKP service is not deployed when `byokRAGOnly` is true. Customers bring their own content via the BYOK tool image and FAISS.
 
 - **Per-run ServiceAccount isolation.** Each agentic execution gets an ephemeral SA (`ls-exec-{run-namespace}-{run-name}`) rather than a shared service account. This prevents cross-run permission leakage: if Run A needs `delete pods` and Run B needs `get secrets`, neither run inherits the other's permissions. Analysis and verification use a shared read-only SA (`lightspeed-agent`).
 
