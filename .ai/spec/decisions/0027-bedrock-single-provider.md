@@ -9,7 +9,7 @@ AWS Bedrock (accessed via Red Hat's Mantle gateway) is a single endpoint with on
 
 ## Decision
 
-A single `bedrock` provider type in OLSConfig with model-prefix routing. The provider detects the model name prefix (`anthropic.*`, `openai.*`, or other) and selects the appropriate LangChain class and API path. Bearer token authentication ships first; STS/IAM auth is deferred for later implementation.
+A single `bedrock` provider type in OLSConfig with model-prefix routing. The provider detects the model name prefix (`anthropic.*`, `openai.*`, or other) and selects the appropriate LangChain class and API path. Both bearer token and STS/IAM authentication are supported — bearer for non-AWS environments, IAM with optional STS assume-role for ROSA/AWS production.
 
 ## Alternatives Considered
 
@@ -20,6 +20,6 @@ A single `bedrock` provider type in OLSConfig with model-prefix routing. The pro
 
 - Simplest user config: one provider block for all Bedrock models
 - Model-prefix routing in service code selects the right LangChain class
-- Bearer token auth serves non-AWS and on-prem clusters immediately
-- STS/IAM auth deferred for ROSA/AWS production environments
-- Code structured for STS extensibility via BedrockConfig class
+- Bearer token auth serves non-AWS and on-prem clusters
+- IAM auth with optional STS assume-role serves ROSA/AWS production environments
+- SigV4 request signing via `httpx_aws_auth` for IAM-authenticated paths

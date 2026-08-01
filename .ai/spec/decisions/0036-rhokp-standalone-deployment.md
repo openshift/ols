@@ -1,6 +1,6 @@
 # 0036: RHOKP Standalone Deployment
 
-**Status:** Accepted
+**Status:** Accepted [PLANNED: OLS-3697]
 **Applies to:** lightspeed-operator, lightspeed-service
 
 ## Context
@@ -9,7 +9,7 @@ The sidecar pattern has multiple limitations: ~75 GiB ephemeral storage bloats t
 
 ## Decision
 
-RHOKP (Red Hat OpenShift Knowledge Proxy) moves from an app-server sidecar to a standalone Deployment with its own Service, following the ocp-mcp standalone HTTPS pattern. The sidecar is removed.
+RHOKP (Red Hat OpenShift Knowledge Proxy) will move from an app-server sidecar to a standalone Deployment with its own Service, following the ocp-mcp standalone HTTPS pattern. Implementation tracked under OLS-3697.
 
 ## Alternatives Considered
 

@@ -1,6 +1,6 @@
 # 0026: Audit Logging Design
 
-**Status:** Accepted
+**Status:** Accepted (design complete; rollout incremental — OLS-3493, OLS-3696)
 **Applies to:** lightspeed-service, lightspeed-agentic-sandbox, lightspeed-agentic-operator, lightspeed-otel-collector
 
 ## Context
