@@ -36,24 +36,28 @@ estimates and risk-assesses every item.
 ```
 /make-jira-from-spec
 /make-jira-from-spec https://github.com/org/repo/pull/123
+/make-jira-from-spec https://github.com/org/repo1/pull/10 https://github.com/org/repo2/pull/20
 /make-jira-from-spec OLS-1234
 ```
 
-Arguments (all optional):
-- **PR URL** — fetch the spec diff from this pull request
+Arguments (all optional, can be combined):
+- **PR URL(s)** — one or more PR URLs to fetch spec diffs from
+  (spec changes often span multiple repos)
 - **Jira key** — existing Epic or Story to update
 
 ## Step 1: Gather Spec Changes
 
 Resolve the spec changes using this priority:
 
-### 1a. PR URL provided
+### 1a. PR URL(s) provided
 
-Fetch the diff with `gh pr diff <URL>`. Filter to files
-under `.ai/spec/` in any repo. Read the full content of each
-changed spec file.
+Fetch the diff from each PR with `gh pr diff <URL>`. Filter
+to files under `.ai/spec/`. When multiple PR URLs are given,
+collect spec diffs from all of them — spec changes often
+span multiple repos. Read the full content of each changed
+spec file.
 
-### 1b. Session context (no PR URL)
+### 1b. Session context (no PR URLs)
 
 Find spec files changed in the current session across all
 repos in the workspace:
