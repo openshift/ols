@@ -124,8 +124,10 @@ it is NOT yet approved for Jira creation.
 Determine the parent for new Stories based on what the
 user provided as the starting context.
 
-**Do NOT create Epics under Feature Requests.** The skill
-creates Epics under a Feature and Stories under an Epic.
+**Do NOT create Epics or Stories under Feature Requests.**
+A Feature Request is a source of context, not a parent
+container. Stories must be under an Epic, never directly
+under a Feature or Feature Request.
 
 ### 3a. Starting context is an Epic
 
@@ -243,10 +245,15 @@ Parent: {PARENT_KEY} — {parent summary}
 | OLS-1234 | Update AC to reflect new constraint | AC   |
 | OLS-1235 | Add scope from new spec section     | #4   |
 
+For updates, the Test column reflects whether the *changed
+scope* has test coverage, not whether the existing story
+has any tests.
+
 **Test column values:**
 - `AC` — test criteria are in the story's own acceptance criteria
 - `#N` — covered by a dedicated test story (row N)
 - `covers #N` — this IS the test story covering row N
+- `waived` — user explicitly waived testing at Step 2
 - `—` — not applicable (Epics only)
 - `NONE` — **gap: no test coverage.** Must be resolved before approval.
 
@@ -261,9 +268,14 @@ change the approval options:
 
 Options:
   approve-with-gaps — create all items, leaving test gaps
+                      (provide justification for each gap)
   revise            — add test coverage first
   stop              — cancel
 ```
+
+When the user chooses `approve-with-gaps`, ask for a
+justification for each gap. Record it in the story's
+Testing section as: `Testing waived — {reason}`.
 
 When no stories show `NONE`, use the standard options:
 
@@ -302,8 +314,12 @@ These labels are passed via `additional_fields` on every
 
 ### Creating items
 
-Create Epics first, then Stories (so Stories can reference
-their parent Epic).
+Create Epics first, then implementation Stories, then test
+Stories (so test Stories can reference their parent Epic and
+the implementation Story keys). After creating each test
+story, update the corresponding implementation story's
+Testing section with the test story's key (`Covered by
+OLS-XXXX`).
 
 ```
 createJiraIssue:
@@ -318,8 +334,12 @@ createJiraIssue:
     labels: ["{inherited labels}"]
 ```
 
-Immediately after creating each item, transition it from
-**New** to **Refinement** (transition ID `31`):
+**MANDATORY** — transition every created item immediately.
+This is the most commonly skipped step — treat it as part
+of the creation, not a follow-up.
+
+Transition from **New** to **Refinement** (transition ID
+`31`):
 
 ```
 transitionJiraIssue:
@@ -340,10 +360,11 @@ getJiraIssue:
 
 If the status is still New after the first attempt, retry
 the transition once. If it fails again (two attempts total),
-report the error to the user and continue with the next item.
+report the error to the user — do not silently continue.
 
-This applies to every created Epic and Story. Do not leave
-any item in New status.
+This applies to every created Epic and Story. Do not
+proceed to the next item until the transition is confirmed
+or the error is reported.
 
 ### Updating items
 
@@ -367,6 +388,17 @@ not remove sections the spec didn't touch.
 
 ### Description format
 
+Fill in the Testing section with exactly one of these lines
+(do not include the others or any comment markers):
+- `e2e: {what e2e test verifies this story}`
+- `integration: {what integration test verifies this story}`
+- `Covered by OLS-XXXX (dedicated test story)`
+- `Covers: OLS-XXXX (this IS the test story for that item)`
+- `Unit tests only — no user-facing behavior change`
+- `Testing waived — {reason}` (only when user chose approve-with-gaps)
+
+Omit the Testing section only for Epics.
+
 Use markdown with this structure:
 
 ```markdown
@@ -385,14 +417,7 @@ As a {persona}, I want {goal} so that {benefit}.
 
 ## Testing
 
-<!-- Pick exactly one line. Delete the rest. -->
-e2e: {what e2e test verifies this story}
-integration: {what integration test verifies this story}
-Covered by OLS-XXXX (dedicated test story)
-Covers: OLS-XXXX (this IS the test story for that item)
-Unit tests only — no user-facing behavior change
-
-<!-- Omit this section only for Epics. -->
+{selected testing line}
 
 ## Spec Reference
 
@@ -462,14 +487,20 @@ Otherwise, keep the smaller stories under the same parent.
 ```
 Story OLS-1002 estimated at 8 SP — splitting:
 
-| # | Summary                    | Parent   |
-|---|----------------------------|----------|
-| 1 | {sub-story 1}              | OLS-2001 |
-| 2 | {sub-story 2}              | OLS-2001 |
-| 3 | {sub-story 3}              | OLS-2002 (new Epic) |
+| # | Summary                    | Parent              | Test |
+|---|----------------------------|---------------------|------|
+| 1 | {sub-story 1}              | OLS-2001            | AC   |
+| 2 | {sub-story 2}              | OLS-2001            | #3   |
+| 3 | e2e: {test summary}        | OLS-2002 (new Epic) | covers #2 |
+```
 
+Apply the same test coverage gating as Step 5: if any
+sub-story shows `NONE`, only offer `approve-with-gaps`.
+
+```
 Options:
-  approve — create the split
+  approve — create the split (only when all sub-stories have test coverage)
+  approve-with-gaps — create the split, leaving test gaps
   revise  — tell me what to change
 ```
 
@@ -509,6 +540,8 @@ addCommentToJiraIssue:
   issueIdOrKey: "{FR key}"
   commentBody: |
     Work items created from this Feature Request:
+
+    Source: {spec file path(s)}
 
     Epics:
     - OLS-2001 — {epic summary}
@@ -583,6 +616,6 @@ Spec sources:
 - **Test coverage required** — every implementation story
   must have test coverage: either test criteria in its own
   AC, a dedicated test story, or an explicit user waiver
-  via `approve-with-gaps`. Flag gaps in Step 5. The
-  `approve` option is only available when all stories have
-  coverage.
+  via `approve-with-gaps` (with recorded justification).
+  Flag gaps in Step 5 and Step 8b. The `approve` option is
+  only available when all stories have coverage.
