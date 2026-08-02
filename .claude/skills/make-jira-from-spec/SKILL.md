@@ -9,7 +9,7 @@ description: >-
   the user says "make jira from spec", "make-jira-from-spec",
   "create jira from spec", "update jira from spec", or wants
   to turn spec changes into tracked Jira work.
-argument-hint: "[PR-URL | OLS-XXXX]"
+argument-hint: "[PR-URL... | OLS-XXXX]"
 ---
 
 # make-jira-from-spec
@@ -56,6 +56,13 @@ to files under `.ai/spec/`. When multiple PR URLs are given,
 collect spec diffs from all of them — spec changes often
 span multiple repos. Read the full content of each changed
 spec file.
+
+**Overlap detection.** If the same spec file appears in
+multiple PR diffs, fetch the head revision from each PR
+(`gh pr view <URL> --json headRefOid`) and compare the
+file at each head. Flag the overlap to the user before
+proceeding — do not silently pick one version. Ask which
+PR's version to use as the baseline for decomposition.
 
 ### 1b. Session context (no PR URLs)
 
@@ -164,9 +171,10 @@ searchJiraIssuesUsingJql:
 ### 3c. Starting context is a Feature Request, or no Jira key provided
 
 Search for existing open Epics by keyword from the Feature
-Request summary. Strip JQL reserved characters (`-`, `(`,
-`)`, `[`, `]`, `"`, `'`, `+`, `&`, `|`, `!`, `{`, `}`)
-from the search terms before building the query:
+Request summary and the proposed stories. Strip JQL reserved
+characters (`-`, `(`, `)`, `[`, `]`, `"`, `'`, `+`, `&`,
+`|`, `!`, `{`, `}`) from the search terms before building
+the query:
 
 ```
 searchJiraIssuesUsingJql:
@@ -177,10 +185,14 @@ searchJiraIssuesUsingJql:
     AND resolution = Unresolved
     AND summary ~ "{escaped keywords}"
   fields: ["summary", "status", "labels"]
-  maxResults: 10
+  maxResults: 20
 ```
 
-Present the candidates to the user:
+Run multiple queries if the proposed stories span different
+areas — use the most distinctive terms from each story
+cluster, not generic words like "OLS" or "support".
+
+**If matching Epics are found**, present them:
 
 ```
 Found existing Epics that may match:
@@ -194,6 +206,14 @@ Options:
   1, 2, ... — use this Epic as the parent
   new      — create a new Epic (will be top-level, no parent)
   key      — enter a different Epic key
+```
+
+**If no matching Epics are found**, skip the table:
+
+```
+No open Epics match these stories. Options:
+  new — create a new Epic (I'll draft summary & scope)
+  key — provide an existing Epic key (e.g. OLS-1234)
 ```
 
 **Wait for user confirmation.** Do NOT proceed without a
@@ -392,8 +412,8 @@ not remove sections the spec didn't touch.
 
 ### Description format
 
-Fill in the Testing section with exactly one of these lines
-(do not include the others or any comment markers):
+Fill in the Testing section with one or more of these lines
+(one per line, combine when a story needs multiple types):
 - `e2e: {what e2e test verifies this story}`
 - `integration: {what integration test verifies this story}`
 - `Covered by OLS-XXXX (dedicated test story)`
@@ -480,11 +500,13 @@ estimated at more than 5 SP:
 Use `superpowers:brainstorming` to break the oversized story
 into smaller stories, each targeting ≤ 3 SP.
 
-Consider whether the split produces enough scope and
-cohesion to warrant a **new sibling Epic**. If the original
-parent is already an Epic and the split stories form a
-distinct workstream, create a new Epic as a sibling.
-Otherwise, keep the smaller stories under the same parent.
+**Sibling Epic decision.** Create a new sibling Epic only
+when the split produces ≥ 3 stories that share a distinct
+concern not covered by the existing parent Epic's scope
+(e.g., the parent covers backend API and the split produces
+3+ frontend stories). Otherwise, keep all sub-stories under
+the original parent — do not create an Epic for fewer than
+3 stories or for stories that fit the parent's scope.
 
 ### 8b. Present split for approval
 
@@ -551,8 +573,8 @@ addCommentToJiraIssue:
     - OLS-2001 — {epic summary}
 
     Stories:
-    - OLS-1001 — {story summary}
-    - OLS-1002 — {story summary}
+    - OLS-1001 — {story summary} (under OLS-2001)
+    - OLS-1002 — {story summary} (under OLS-2001)
 
     Created by make-jira-from-spec.
   contentFormat: "markdown"
