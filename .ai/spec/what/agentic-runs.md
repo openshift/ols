@@ -26,7 +26,7 @@ Multi-phase AI workflows that diagnose and remediate cluster issues. An alert fi
 ### Phase 3: Approval
 
 14. The agentic-console displays the AgenticRun in "Proposed" phase with the analysis results.
-15. A human reviewer selects a remediation option, sets a max retry count, and creates an `AgenticRunApproval` CR for execution. **Only cluster-admin users may approve runs** — see `agentic-security.md` for authorization rules and enforcement.
+15. A human reviewer selects a remediation option and creates an `AgenticRunApproval` CR for execution. **Only cluster-admin users may approve runs** — see `agentic-security.md` for authorization rules and enforcement.
 16. The reviewer can optionally provide revision feedback via `spec.revisionFeedback` on the AgenticRun. Revision feedback is also supported from the `NoActionRequired` terminal phase — patching `spec.revisionFeedback` resets conditions and re-runs analysis, same as the re-analysis pattern from other phases.
 
 ### Phase 4: Execution
@@ -39,20 +39,19 @@ Multi-phase AI workflows that diagnose and remediate cluster issues. An alert fi
 ### Phase 5: Verification
 
 21. If verification is configured, the operator checks the approval gate for verification.
-22. The operator calls the sandbox with a verification request, passing the execution result.
-23. If verification fails, the operator retries up to max attempts, including previous attempt results as context.
-24. On success, the operator stores the result in a `VerificationResult` CR and the AgenticRun moves to Completed.
-25. On exhausted retries, the AgenticRun may escalate.
+22. The operator calls the sandbox with a verification request, passing the execution result. The verification prompt instructs the agent to retry convergence-dependent checks (alerts, metrics, pod readiness) with appropriate wait intervals before reporting failure.
+23. On success, the operator stores the result in a `VerificationResult` CR and the AgenticRun moves to Completed.
+24. On failure, the operator stores the result in a `VerificationResult` CR and moves to the Escalation phase.
 
 ### Phase 6: Escalation
 
-26. If verification fails after all retries, the operator checks the approval gate for escalation.
-27. The operator calls the sandbox with an escalation request to generate a human-readable summary.
-28. The result is stored in an `EscalationResult` CR and the AgenticRun moves to Escalated.
+25. If verification fails, the operator checks the approval gate for escalation.
+26. The operator calls the sandbox with an escalation request to generate a human-readable summary.
+27. The result is stored in an `EscalationResult` CR and the AgenticRun moves to Escalated.
 
 ### Cleanup
 
-29. On terminal phases (Completed, Failed, Denied, Escalated, NoActionRequired) or AgenticRun deletion, the operator deletes materialized RBAC, releases sandbox pods/claims, and removes the finalizer.
+28. On terminal phases (Completed, Failed, Denied, Escalated, NoActionRequired) or AgenticRun deletion, the operator deletes materialized RBAC, releases sandbox pods/claims, and removes the finalizer.
 
 ## Integration Contracts
 
@@ -61,8 +60,8 @@ Multi-phase AI workflows that diagnose and remediate cluster issues. An alert fi
 | CRD | Scope | Owner | Purpose |
 |---|---|---|---|
 | `AgenticRun` | Namespace | alerts-adapter (creates), operator (reconciles) | Workflow state machine. Immutable spec, mutable revisionFeedback, status conditions. |
-| `AgenticRunApproval` | Namespace | console (creates) | Approval decisions per stage, option selection, max attempts override. Owned by AgenticRun. |
-| `ApprovalPolicy` | Cluster (singleton "cluster") | admin (creates) | Automatic/Manual gates per stage, max attempts, max concurrent runs. |
+| `AgenticRunApproval` | Namespace | console (creates) | Approval decisions per stage, option selection. Owned by AgenticRun. |
+| `ApprovalPolicy` | Cluster (singleton "cluster") | admin (creates) | Automatic/Manual gates per stage, max concurrent runs. |
 | `Agent` | Cluster | admin (creates) | LLM provider selection and model name. |
 | `LLMProvider` | Cluster | admin (creates) | Provider type, credentials secret, URL, region/project. |
 | `AnalysisResult` | Namespace | operator (creates) | Immutable analysis output. Owned by AgenticRun. |
