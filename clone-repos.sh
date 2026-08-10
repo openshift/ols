@@ -33,6 +33,8 @@ REPOS=(
   lightspeed-agentic-console
   lightspeed-agentic-sandbox
   lightspeed-agentic-alerts-adapter
+  lightspeed-hub
+  lightspeed-hub-ui
   lightspeed-otel-collector
   lightspeed-team-harness
   ols-load-generator
@@ -41,7 +43,9 @@ REPOS=(
 ORG="openshift"
 TARGET_DIR="${1:-$(pwd)}"
 
-# Use GIT_ASKPASS so the token is never embedded in clone URLs or git config
+# GIT_ASKPASS lets git fetch the password via a helper script rather than
+# prompting interactively (which would hang in a pod) or embedding the token
+# in the URL (where it would be visible in `ps` output and git's reflog).
 _ASKPASS=$(mktemp)
 printf '#!/bin/sh\necho "%s"\n' "${GITHUB_TOKEN}" > "${_ASKPASS}"
 chmod +x "${_ASKPASS}"
