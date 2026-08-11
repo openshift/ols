@@ -296,6 +296,7 @@ These factors push a story DOWN by 1 point:
 | CI/Build/Release | 0-2 | Pipeline config is 0-1; onboarding new repos is 2-3 |
 | Documentation | 1-2 | Release notes are 2; doc corrections are 0.5-1 |
 | Spike/Research | 0.5-3 | Narrow audit is 0.5; broad evaluation is 2-3 |
+| CVE/Vulnerability Trackers | 0.5-2 | Default **0.5** — most are a dependency bump in one component image (Go module or Python package pin, rebuild, verify). Estimate higher only when the tracker requires code changes beyond a version bump, has no upstream fix yet (requiring workarounds or EC exceptions), or involves cross-component coordination. |
 
 ## How to Use This Rubric
 
