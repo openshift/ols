@@ -3,7 +3,7 @@ name: estimate-risk
 description: >
   Assess risk level (1/2/3) for OLS Jira stories using the team's risk rubric.
   Fetches the story, applies the decision tree, sets the Risk Score field, and
-  appends the assessment to the description. Use for on-demand assessment or
+  adds the assessment as a comment. Use for on-demand assessment or
   after creating a new story.
 argument-hint: "OLS-1234 [OLS-1235 ...]"
 ---
@@ -13,8 +13,8 @@ argument-hint: "OLS-1234 [OLS-1235 ...]"
 ## Overview
 
 Assess the risk level for one or more OLS Jira stories using the team's
-risk rubric. After assessing, set the Risk Score field and append a risk
-assessment note to the description.
+risk rubric. After assessing, set the Risk Score field and add a risk
+assessment comment.
 
 ## Usage
 
@@ -87,21 +87,15 @@ Use `mcp__atlassian__editJiraIssue` with:
 
 Where `<risk_level>` is 1, 2, or 3.
 
-#### 3d. Append risk assessment to description
+#### 3d. Add risk assessment comment
 
-Use `mcp__atlassian__editJiraIssue` to update the description.
-Fetch the current description first, then append at the bottom:
+Use `mcp__plugin_atlassian_atlassian__addCommentToJiraIssue` with:
+- `cloudId`: `redhat.atlassian.net`
+- `issueIdOrKey`: the story key
+- `contentFormat`: `markdown`
+- `commentBody`: `**AI Risk Assessment:** Risk {1|2|3} — {one-line impact summary}\nRationale: {why this classification, referencing the rubric}`
 
-```
----
-**AI Risk Assessment:** Risk {1|2|3} — {one-line impact summary}
-Rationale: {why this classification, referencing the rubric}
-```
-
-Use `contentFormat: "markdown"` for the edit.
-
-If the description already has an `**AI Risk Assessment:**` line, replace
-it rather than adding a duplicate.
+Do NOT modify the description field.
 
 ### Step 4: Report to user
 

@@ -3,7 +3,7 @@ name: estimate-story
 description: >
   Estimate story points for OLS Jira stories using the calibrated rubric
   derived from 300 completed stories. Fetches the story, applies the decision
-  tree, sets the SP field, and appends the estimate to the description.
+  tree, sets the SP field, and adds the estimate as a comment.
   Use for on-demand estimation or after creating a new story.
 argument-hint: "OLS-1234 [OLS-1235 ...]"
 ---
@@ -13,8 +13,8 @@ argument-hint: "OLS-1234 [OLS-1235 ...]"
 ## Overview
 
 Estimate story points for one or more OLS Jira stories using the team's
-calibrated rubric. After estimating, set the story points field and append
-an estimation note to the description.
+calibrated rubric. After estimating, set the story points field and add
+an estimation comment.
 
 ## Usage
 
@@ -95,20 +95,15 @@ Use `mcp__plugin_atlassian_atlassian__editJiraIssue` with:
 - `issueIdOrKey`: the story key
 - `fields`: `{"customfield_10028": <estimated_points>}`
 
-#### 3d. Append estimation note to description
+Do NOT update the description field. Only set the story points field.
 
-Use `mcp__plugin_atlassian_atlassian__editJiraIssue` to update the description.
-Fetch the current description first, then append at the bottom:
+#### 3d. Add estimation comment
 
-```
----
-**AI Estimate:** X SP (confidence: high/medium/low)
-```
-
-Use `contentFormat: "markdown"` for the edit.
-
-If the description already has an `**AI Estimate:**` line, replace it rather
-than adding a duplicate.
+Use `mcp__plugin_atlassian_atlassian__addCommentToJiraIssue` with:
+- `cloudId`: `redhat.atlassian.net`
+- `issueIdOrKey`: the story key
+- `contentFormat`: `markdown`
+- `commentBody`: `**AI Estimate:** X SP (confidence: high/medium/low)`
 
 ### Step 4: Report to user
 
