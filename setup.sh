@@ -10,6 +10,8 @@ REPOS=(
   lightspeed-agentic-console
   lightspeed-agentic-sandbox
   lightspeed-agentic-alerts-adapter
+  lightspeed-hub
+  lightspeed-hub-ui
   lightspeed-otel-collector
   lightspeed-team-harness
   ols-load-generator
