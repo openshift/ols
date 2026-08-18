@@ -43,7 +43,10 @@ End-to-end flow for processing a user question: from console submission through 
 
 ### Stage 6 — Prompt Composition (lightspeed-service)
 
-20. The final system prompt is assembled: base prompt (mode-dependent) + agent instructions + RAG instructions + history instructions + skill content + RAG context.
+20. The final system prompt is assembled: base prompt (mode-dependent) + agent instructions + RAG instructions + history instructions + skill content + RAG context. When BYOK chunks are present, two conditional substitutions are applied:
+    - The generic context instruction ("Use the retrieved document") is replaced with a BYOK-aware instruction that labels the content as organization-provided domain knowledge and tells the LLM to treat it as authoritative for topics it addresses (while disregarding it if unrelated to the query).
+    - The OKP tool supplement (`SOLR_DOCS_TOOL_SUPPLEMENT`) is replaced with a variant that positions `search_openshift_documentation` as supplementary — removing the "ALWAYS call this tool" directive and instructing the LLM to use OKP only to fill in general OpenShift details not covered by the domain knowledge.
+    - BYOK chunks are formatted with a `"Domain Knowledge:"` prefix instead of `"Document:"`.
 21. Conversation history is added as message history.
 22. The user query is appended. Total token usage is validated against the prompt budget.
 
@@ -149,3 +152,4 @@ LLMRequest:
 | ~~OLS-2776~~ | ~~Support Anthropic as direct LLM provider~~ [DONE] |
 | OLS-1660 | Llama Stack integration |
 | OLS-3442 | Reasoning token support: per-model `reasoningConfig` for all providers, streaming accumulation fix, vLLM `ChatVLLMReasoning` subclass |
+| OLS-3599 | BYOK content prioritization: conditional prompt instructions in Stage 6 to elevate BYOK domain knowledge and demote OKP tool guidance when both are active |

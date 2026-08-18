@@ -27,6 +27,26 @@ Dual-architecture retrieval system: OKP (Red Hat product docs via Solr hybrid se
 5. At query time, BYOK chunks are retrieved via vector similarity, truncated to fit the token budget, and merged into the prompt context as direct RAG.
 6. When both OKP and BYOK are active, BYOK chunks go into prompt context first, then the LLM can additionally call the OKP tool.
 
+## BYOK Content Prioritization
+
+When BYOK chunks are present in the prompt context, the system adjusts prompt instructions to prioritize customer domain knowledge over OKP tool results. This prevents the LLM from reflexively preferring generic OCP documentation over organization-specific content.
+
+### Prompt Priority Rules
+
+When BYOK context is present:
+
+1. **BYOK context instruction** — the generic "Use the retrieved document" instruction is replaced with a BYOK-aware variant that labels the content as domain-specific knowledge provided by the organization. The instruction tells the LLM to treat BYOK content as authoritative for topics it addresses, but to disregard it if the chunks appear unrelated to the user's query.
+2. **OKP tool guidance** — the `SOLR_DOCS_TOOL_SUPPLEMENT` is replaced with a variant that positions OKP as supplementary. The "ALWAYS call this tool" directive is removed. The LLM is instructed to use `search_openshift_documentation` only to fill in general OpenShift details that the domain knowledge does not cover, and never to contradict or override relevant domain knowledge.
+3. **Chunk labeling** — BYOK chunks are formatted with a `"Domain Knowledge:"` prefix instead of the generic `"Document:"` prefix, reinforcing the source distinction in the prompt.
+
+When BYOK context is **not** present (OKP-only): all prompt instructions remain unchanged from current behavior.
+
+### Rationale
+
+The current prompts contain two competing "ALWAYS" directives: the base instruction says to always use provided context as the primary source of truth, while the OKP tool supplement says to always call `search_openshift_documentation` before answering. The OKP directive is more specific and actionable, so LLMs preferentially follow it — even when BYOK content directly answers the question with organization-specific procedures.
+
+The qualified instruction ("if they address the user's specific question") mitigates the risk of low-relevance BYOK chunks polluting answers. FAISS retrieval always returns top-K results regardless of relevance, and the current similarity cutoff (0.3) is permissive. Rather than tuning numeric thresholds, the prompt lets the LLM judge whether the domain knowledge is relevant to the specific query.
+
 ## Integration Contracts
 
 ### OKP — Solr HTTP Contract
@@ -100,3 +120,4 @@ Both models are bundled in the service image. [PLANNED] Ask OKP team if server-s
 | — | Multi-product OKP filtering (RFE pending with OKP product) |
 | — | Multi-version OKP support (RFE pending with OKP product) |
 | OLS-3799 | Operator: add wait-for-rhokp init container to block app-server startup until RHOKP Solr is reachable. Service: replace `@cached_property` with lazy init + unlimited retry for `SolrHybridSearch` client to prevent permanent connection loss. |
+| OLS-3599 | BYOK content prioritization — conditional prompt instructions to elevate BYOK domain knowledge and demote OKP tool guidance when both are active |
