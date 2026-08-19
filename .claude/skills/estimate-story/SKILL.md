@@ -28,7 +28,10 @@ Works for Stories, Bugs, Tasks, Weaknesses, and Vulnerabilities.
 
 ## Rubric Location
 
-Read the full rubric from: `story-point-rubric.md` (in the workspace root)
+Read the full rubric from: `story-point-rubric.md` (in the workspace root), **and the
+calibration overrides** from `.claude/skills/estimate-story/story-point-rubric-overrides.md`
+(these take precedence on conflict — no 0; no 1→2 push; lean 2→3; 5 only with 2+ strong
+signals; no 8).
 
 You MUST read this file before estimating. It contains:
 - Point definitions (0, 0.5, 1, 2, 3, 5) with characteristics and code complexity data
@@ -39,11 +42,15 @@ You MUST read this file before estimating. It contains:
 
 ## Workflow
 
-### Step 1: Read the rubric
+### Step 1: Read the rubric and overrides
 
 ```
 Read story-point-rubric.md
+Read .claude/skills/estimate-story/story-point-rubric-overrides.md
 ```
+
+The overrides file is the calibrated (v11) correction layer and **takes precedence** over
+the base rubric where they conflict.
 
 ### Step 2: Parse story keys from arguments
 
@@ -68,9 +75,26 @@ Note: The rubric was built from Stories but applies to all issue types that
 use story points. For Weaknesses and Vulnerabilities, treat them like Bugs —
 the complexity is in the investigation + fix, not the issue type label.
 
+#### 3a-bis. Retrieve similar past stories (RAG)
+
+Pull the 5 most similar *completed, human-pointed* stories (with their actual story points)
+from the historical corpus:
+
+```
+python3 .claude/skills/estimate-story/retrieve_neighbors.py --summary "<summary>" --description "<description>"
+```
+
+This prints a JSON list of `{key, summary, sp, sim}` (sim = 0-1 text similarity) and adds no
+LLM tokens beyond that small list. Use it as an anchor in 3b:
+- Near-duplicate (`sim` > 0.7) → strong evidence the SP matches; weight heavily.
+- Genuinely similar neighbors (`sim` > 0.4) that agree → a solid anchor.
+- Weak / scattered neighbors (low `sim`) → ignore; rely on the rubric + overrides.
+- Never let a small-SP neighbor drag down a story that clearly shows large-scope signals
+  (overrides C/D).
+
 #### 3b. Apply the rubric
 
-Using the rubric you read in Step 1:
+Using the rubric, the overrides, and the retrieved neighbors:
 
 1. **Identify work type** — new feature, removal, refactor, test, spike, UI, operator, doc, CI, etc.
 2. **Count acceptance criteria** — more criteria generally means more points
@@ -115,6 +139,24 @@ Do NOT list comparable stories from history.
 
 For low-confidence estimates, provide a range and note what would change
 the estimate.
+
+## Retrieval Corpus & Refresh Policy
+
+The corpus is `.claude/skills/estimate-story/story-corpus.jsonl` (one row per completed,
+human-pointed story: key, summary, description, components, labels, sp). Retrieval is TF-IDF
+cosine in `retrieve_neighbors.py` — deterministic, no external services, regenerated from the
+corpus on each run (no index to maintain).
+
+**Refresh monthly / per-release, with one hard rule:**
+- **Only add HUMAN-estimated stories.** Anything estimated by this skill (i.e. resolved after
+  the AI-estimation cutoff, ~2026-05 — the end of the calibration window) must NOT be added:
+  feeding the skill's own estimates back into the corpus creates a feedback loop that
+  amplifies error.
+- You MAY extend the corpus with OLDER human-estimated stories (before 2025-04) — more
+  human-pointed data improves retrieval quality.
+- Query shape: `project = OLS AND issuetype = Story AND "Story Points" is not EMPTY AND
+  resolved <= "<AI cutoff>"`; fields key/summary/description/components/labels + Story Points.
+  Sanitize descriptions (drop any line mentioning an AI estimate / confidence) before writing.
 
 ## Jira Field Reference
 
