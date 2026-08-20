@@ -8,15 +8,25 @@ Story points measure **complexity and effort**, not calendar time.
 
 ---
 
-## Scale: Fibonacci (0, 0.5, 1, 2, 3, 5, 8, 13)
+## Scale: Fibonacci — 0.5, 1, 2, 3, 5
 
-The team primarily uses **0 through 5**. Stories above 5 are rare and should be split.
+The team uses **0.5 through 5**. **0 is retired** — it is no longer used; the smallest value
+is 0.5. A story that feels like **8+ should be split**; 8 is not assigned (treat it as a 5,
+the team's practical max, or break it up).
+
+> The authoritative correction layer is the **"Calibrated Rules (v11)"** section below (from a
+> ~900-story blind calibration + out-of-sample validation). It takes precedence over the
+> point-definition prose, the decision tree, and the older bias-corrections wherever they
+> conflict.
 
 ---
 
 ## Point Definitions (from historical data)
 
-### 0 Points — Trivial / Config-only
+### 0 Points — RETIRED (now 0.5)
+> **0 is no longer used.** The cases below now map to **0.5** (or 1 for doc-content and
+> security-checklist items — see Calibrated Rules). Kept for historical context only.
+
 **Frequency:** ~5% of stories
 **Median time to close:** 7 days (mostly review/merge lag)
 
@@ -241,7 +251,7 @@ Values are p25-p75 (interquartile range) — the middle 50% of stories at each l
 
 ```
 1. Is it pure deletion/config with no new behavior?
-   → 0 points
+   → 0.5 points  (0 is retired)
 
 2. Is it a single-file or narrow-scope change with <3 files?
    → 0.5 points
@@ -262,6 +272,90 @@ Values are p25-p75 (interquartile range) — the middle 50% of stories at each l
    OR new extensibility mechanism (especially UI)?
    → 5 points
 ```
+
+## Calibrated Rules (v11 — from ~900-story blind calibration + out-of-sample validation)
+
+Derived and validated on ~900 completed stories (blind test-and-fix plus two out-of-sample
+holdouts). **These take precedence over the point-definition prose, the decision tree, and the
+older bias-corrections where they conflict.** Best measured accuracy with these rules plus the
+retrieval anchor (see the `estimate-story` skill): ~59% exact / 90% within-1 / MAE 0.52, vs
+~40% for the point-definitions alone.
+
+### Boundary leans (apply first)
+- **No 0.** Smallest value is 0.5. Anything older guidance called "0" is now 0.5.
+- **1 vs 2 — no thumb on the scale.** Decide on normal signals; do NOT round a 1 up to 2
+  (1s are already over-called).
+- **2 vs 3 — lean UP.** True 3s are routinely under-called as 2. One clear size signal
+  (multiple repos; new subsystem/service/CRD/provider; real migration/refactor; 3+ surfaces
+  like schema+controller+UI; multi-concern description) → **3**. When torn, choose **3**.
+- **3 vs 5 — lean up only gently.** True 5s are rare (~4%). Assign **5 only with TWO OR MORE
+  independent strong signals**, or unmistakably architectural/epic-scale work. One signal or a
+  mere tie → stay at **3**. (Selectivity beats brute-force rounding.)
+- **No 8.** A story that feels like 8 is a 5 or should be split. Never round a large story
+  DOWN to 2-3, but do not assign 8.
+
+### Work-type defaults
+1. **Administrative / non-technical tickets → 0.5.** Slide decks, JTBD examples, "move this
+   Jira to the backlog," peer-review requests, PR-template tweaks. AC bullet count does not
+   push these up. *Exception A:* an unfilled template/placeholder story (raw
+   "[PERSONA]/[DO A THING]" body, or "TODO: <topic>") → **2**, low-confidence. *Exception B:*
+   a numbered security/compliance checklist item ("T1204:", "CT4:", …) → **1**.
+2. **Single, isolated code/config edits → 0.5.** One column/field on one table; one boilerplate
+   file from a template; a single dependency version bump (unless it names specific new
+   capabilities to implement). Reserve **1** for a single-surface change needing design/
+   testing/coordination. **Toolchain/runtime upgrades (Go/Node/Python version) → 2** (rebuild +
+   compat + CI across the codebase). Routine recurring content-generation (a RAG content image
+   per OCP release, a per-version FBC catalog config) → 0.5-1; adding a genuinely NEW doc
+   source to a RAG corpus → 2.
+2b. **Documentation-authoring/update stories → 1** (not 0.5), even for a trivial edit (broken
+   link, one frontmatter field) — ~70% of doc-component tickets land at 1. Pure process tasks
+   merely carrying a Documentation label (peer reviews, decks) are rule 1 (0.5). Release notes
+   and multi-page/multi-product doc work are 2+.
+3. **Removal / subtraction → 0.5-1**, even across several files (delete a provider + its
+   registration/tests/docs). Do not apply "multiple surfaces → lean 3/5" to subtractive work.
+   Use 2+ only if the removal needs migration/compat work for remaining users or bundles a
+   nontrivial replacement.
+4. **Compliance/policy-exception and pure verification/confirmation tickets → 0.5** (an
+   EC/Conforma exemption entry; "verify X works on new OCP" with no anticipated code change).
+   A pure compatibility check is not "investigate and fix" (rule 5).
+5. **"Investigate and fix" → scoped fix (2) by default**, even with an unconfirmed cause, when
+   scoped to one test/job/suite with a test/CI-side fix. **0.5-1** if a specific (even
+   tentative) cause is named or the fix is mechanical; **3** if it needs infra-level changes or
+   recurs across multiple suites; **5** if explicitly cross-environment/systemic with no known
+   cause.
+6. **Release / environment-promotion tickets → 2** (high-variance; a few are really 5 but text
+   can't tell — don't chase). "Create release notes for version X" → 2. Promoting an *existing*
+   pipeline is this rule; creating a *new* recurring job is rule 8.
+7. **A small addition to an existing CI/build pipeline** (one more platform/arch) → 0.5.
+8. **Lean 3** for real cross-cutting scope: CRD/API-schema changes touching reconciliation in
+   >1 place or propagating status end-to-end (one field read in one path is 2); a new provider
+   that *also* removes a retired one; a **new** periodic job/pipeline; a UI↔backend feature
+   implementing both sides together (or a backend-only slice that itself adds multiple
+   capabilities); one story implementing multiple related API operations; adding a new external
+   protocol/spec into an existing system; "single source of truth" consolidation or a
+   base-image swap across many Dockerfiles. *Exception:* pure field-naming/type-convention
+   standardization with no reconciler change is often just **1** — don't lean 3 on the
+   "consolidation" label alone. A long, multi-concern narrative → lean 3 even as one AC bullet.
+9. **Lean 5** when: three or more distinct technical surfaces in one deliverable (CRD/schema +
+   server logic + a new external library/service), or explicit **total-coverage** framing
+   ("extend to *all* pages," "translate *all* strings"). 5/8 stay noisy/low-volume — don't
+   over-chase them.
+10. **Spikes → 2** by default (they cluster at 2). **0.5** for a single already-scoped
+    question/PoC. Comparing multiple options is NOT enough for 3. **3** only if the AC commits
+    to a concrete forward deliverable (follow-on stories to file; a CR/config to propose as a
+    gate). **5** if it demands quantifiable/benchmarked outcomes or is epic-scale. Judge by
+    what the AC commits to producing, not by broad-sounding titles.
+11. **Do not let AC-bullet count alone drive the estimate.** Weigh work-type and distinct
+    files/layers/decisions first; use AC count only to break a tie between two adjacent
+    plausible levels.
+
+### Retrieval anchor & residual hard cases
+The `estimate-story` skill retrieves the most similar past stories (with their actual SP)
+before finalizing. Weight a near-duplicate (similarity > 0.7) heavily; treat several agreeing
+similar neighbors (> 0.4) as a solid anchor; ignore weak/scattered matches. Never let a
+small-SP neighbor pull down a story that clearly shows large-scope signals. Actual **5s**
+(~21% exact) and **8s** (~0%) remain near the text-only ceiling — rare and textually
+indistinguishable from 3s — so do not chase them with aggressive rules.
 
 ## Complexity Multipliers
 
@@ -320,7 +414,11 @@ When estimating a new story:
 
 For low-confidence estimates, provide a range (e.g., "2-3 points depending on whether X requires Y").
 
-### Bias Corrections (from blind testing)
+### Bias Corrections (from blind testing) — SUPERSEDED
+
+> **Superseded by the "Calibrated Rules (v11)" section above**, which is based on a much larger
+> (~900-story) calibration. Where these older 22-story corrections conflict with v11 — notably
+> #1 ("vague → bias up") and any 0-point guidance — **follow v11**. Kept here for history.
 
 Blind testing on 22 stories showed 55% exact match, 86% within ±1 SP, but a systematic
 underestimation bias of -0.6 SP. Apply these corrections:

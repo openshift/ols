@@ -28,10 +28,10 @@ Works for Stories, Bugs, Tasks, Weaknesses, and Vulnerabilities.
 
 ## Rubric Location
 
-Read the full rubric from: `story-point-rubric.md` (in the workspace root), **and the
-calibration overrides** from `.claude/skills/estimate-story/story-point-rubric-overrides.md`
-(these take precedence on conflict — no 0; no 1→2 push; lean 2→3; 5 only with 2+ strong
-signals; no 8).
+Read the full rubric from: `story-point-rubric.md` (in the workspace root). Its **"Calibrated
+Rules (v11)"** section is the authoritative correction layer (no 0; no 1→2 push; lean 2→3; 5
+only with 2+ strong signals; no 8; plus the work-type defaults) and takes precedence over the
+older point-definition prose / decision tree / bias-corrections.
 
 You MUST read this file before estimating. It contains:
 - Point definitions (0, 0.5, 1, 2, 3, 5) with characteristics and code complexity data
@@ -42,15 +42,14 @@ You MUST read this file before estimating. It contains:
 
 ## Workflow
 
-### Step 1: Read the rubric and overrides
+### Step 1: Read the rubric
 
 ```
 Read story-point-rubric.md
-Read .claude/skills/estimate-story/story-point-rubric-overrides.md
 ```
 
-The overrides file is the calibrated (v11) correction layer and **takes precedence** over
-the base rubric where they conflict.
+Pay attention to its **"Calibrated Rules (v11)"** section — it is the authoritative correction
+layer and takes precedence over the older prose / decision tree / bias-corrections.
 
 ### Step 2: Parse story keys from arguments
 
