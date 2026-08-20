@@ -14,6 +14,9 @@ Cross-repo workspace for OpenShift Lightspeed — shared specs, routing, and AI 
 | [lightspeed-agentic-console](https://github.com/openshift/lightspeed-agentic-console) | Console plugin for the agentic variant |
 | [lightspeed-agentic-sandbox](https://github.com/openshift/lightspeed-agentic-sandbox) | Sandboxed execution environment for agentic actions |
 | [lightspeed-agentic-alerts-adapter](https://github.com/openshift/lightspeed-agentic-alerts-adapter) | Adapter bridging OpenShift alerts into the agentic system |
+| [lightspeed-hub](https://github.com/openshift/lightspeed-hub) | Multicluster hub — manages spoke clusters, coordinates fleet-wide agentic operations |
+| [lightspeed-hub-ui](https://github.com/openshift/lightspeed-hub-ui) | Console UI for the multicluster hub |
+| [lightspeed-otel-collector](https://github.com/openshift/lightspeed-otel-collector) | Custom OpenTelemetry collector for OLS observability |
 | [lightspeed-team-harness](https://github.com/openshift/lightspeed-team-harness) | Shared AI coding skills for the team |
 | [ols-load-generator](https://github.com/openshift/ols-load-generator) | Load testing tool for the OLS service |
 
@@ -24,7 +27,8 @@ Clone all repos into this directory:
 ```bash
 for repo in lightspeed-service lightspeed-operator lightspeed-console lightspeed-rag-content \
   lightspeed-agentic-operator lightspeed-agentic-console lightspeed-agentic-sandbox \
-  lightspeed-agentic-alerts-adapter lightspeed-team-harness ols-load-generator; do
+  lightspeed-agentic-alerts-adapter lightspeed-hub lightspeed-hub-ui \
+  lightspeed-otel-collector lightspeed-team-harness ols-load-generator; do
   git clone git@github.com:openshift/$repo.git
 done
 ```
