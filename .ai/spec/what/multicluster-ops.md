@@ -2,6 +2,8 @@
 
 Cross-repo specification for fleet-scale agentic operations. A central hub cluster manages spoke clusters, routing alerts and agentic workflows across the fleet through a single control plane.
 
+> **Testing:** how this feature is tested is specified separately in [multicluster-testing.md](multicluster-testing.md).
+
 ## Repos Involved
 
 | Repo | Role |

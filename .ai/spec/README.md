@@ -34,6 +34,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Understand the compliance audit logging system | `what/audit-logging.md` |
 | Understand the temporary audit log pipeline | `what/templog.md` |
 | Understand multicluster operations | `what/multicluster-ops.md` |
+| Understand how multicluster is tested | `what/multicluster-testing.md` |
 | Check cross-repo rules | `constraints.md` |
 | Browse architectural decisions | `decisions/README.md` |
 
