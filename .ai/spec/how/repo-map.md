@@ -121,10 +121,10 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 
 | Concern | Repo | Spec Files |
 |---|---|---|
-| Hub UI system overview | lightspeed-hub-ui | `what/system-overview.md` [PLANNED] |
-| Fleet dashboard (spoke health, AgenticRuns, alerts) | lightspeed-hub-ui | `what/fleet-dashboard.md` [PLANNED] |
-| Spoke management (registration, detail, decommission) | lightspeed-hub-ui | `what/spoke-management.md` [PLANNED] |
-| Fleet-wide AgenticRun views | lightspeed-hub-ui | `what/fleet-dashboard.md` [PLANNED] |
+| Hub UI system overview | lightspeed-hub-ui | `what/system-overview.md` |
+| Fleet dashboard (spoke health, AgenticRuns, alerts) | lightspeed-hub-ui | `what/fleet-dashboard.md` |
+| Spoke management (registration, detail, decommission) | lightspeed-hub-ui | `what/spoke-management.md` |
+| Fleet-wide AgenticRun views | lightspeed-hub-ui | `what/fleet-dashboard.md` |
 
 ## Multicluster OLS — OTel Collector
 

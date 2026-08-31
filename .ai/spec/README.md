@@ -14,7 +14,7 @@ Each child repo has its own `.ai/spec/` (or `AGENTS.md`) with repo-specific beha
 
 ## Scope
 
-Covers the full OLS product across 11 repositories currently cloned in this workspace (lightspeed-hub and lightspeed-hub-ui are not yet available). Out of scope: internal repo implementation details (covered by each repo's own `.ai/spec/`).
+Covers the full OLS product across the 13 repositories currently cloned in this workspace. Out of scope: internal repo implementation details (covered by each repo's own `.ai/spec/`).
 
 ## Audience
 
