@@ -47,17 +47,18 @@ Jira tracking: OLS-3298 (per-run cancellation), OLS-4018 (global kill-switch san
 
 21. **Draining definition**: `AgenticOLSConfig` MUST remain `Suspended=True` with reason `Draining` while any active managed sandbox workload or associated sandbox access remains. Draining is based on actual teardown state, not only whether AgenticRuns have terminal conditions.
 22. **Draining observability**: The Draining condition message SHOULD report the remaining active sandbox count. A list, deletion, or verification error MUST keep the condition in Draining and surface an actionable message or Event.
-23. **Activation completion**: The condition MAY transition to `Suspended=True`, reason `AdminActivated`, and emit the activation-complete Event only after the operator confirms that no active managed sandbox or associated access remains.
+23. **Activation completion**: The condition MAY transition to `Suspended=True`, reason `AdminActivated` only after the operator confirms that no active managed sandbox or associated access remains. The suspension-activated Event is emitted when `spec.suspended` changes to `true`, regardless of whether the condition initially enters `Draining`.
 24. **Immediate blocking**: Draining does not weaken suspension. Admission blocking and reconcile guards MUST remain active from the moment `spec.suspended=true`, before teardown completion.
+25. **Safe resumption**: An attempt to set `AgenticOLSConfig.spec.suspended=false` while the `Suspended` condition is `True` with reason `Draining` MUST be rejected at admission. The admission policy MUST allow deactivation only after the condition reaches `AdminActivated`. This keeps create admission blocking and reconcile guards active until stopped sandbox workloads and access are confirmed removed.
 
 ### Console Behavior [PLANNED: OLS-3298]
 
-25. **Stop control visibility**: The agentic console MUST show a danger-styled `Stop run` control only during active sandbox phases: `Analyzing`, `Executing`, `Verifying`, and `Escalating`. Direct API cancellation remains valid for every non-terminal phase under rule 4.
-26. **Access review**: The console MUST call `useAccessReview` for `patch` on namespaced `agenticruns`. The effective permission controls whether the Stop control is shown or enabled. The console MUST NOT inspect groups or reuse the `patch agenticrunapprovals` approval check as a proxy. The API server remains authoritative for the patch.
-27. **Confirmation**: Stopping requires confirmation that the action is irreversible. During `Executing`, the confirmation MUST warn that partial cluster changes may exist and require manual inspection.
-28. **Mutation and errors**: Confirmation MUST patch `spec.cancelled=true`. The console MUST NOT optimistically change phase. A failed patch, including a stale-permission `403`, MUST leave the current phase visible and display the API error.
-29. **Failed presentation**: A cancelled run MUST retain the `Failed` phase badge and display `Stopped by user` as its cause in list and detail views. While any sandbox reference remains under rule 19, the detail view MUST also display `Sandbox shutdown in progress`.
-30. **Global presentation**: When rule 11 applies, the console MUST show `Emergency stopped`, not `Failed / Stopped by user`.
+26. **Stop control visibility**: The agentic console MUST show a danger-styled `Stop run` control only during active sandbox phases: `Analyzing`, `Executing`, `Verifying`, and `Escalating`. Direct API cancellation remains valid for every non-terminal phase under rule 4.
+27. **Access review**: The console MUST call `useAccessReview` for `patch` on `agenticruns` in API group `agentic.openshift.io`, scoped to `run.metadata.namespace` (falling back to the run-watch namespace before the run loads). The effective permission controls whether the Stop control is shown or enabled. The console MUST NOT inspect groups or reuse the `patch agenticrunapprovals` approval check as a proxy. The API server remains authoritative for the patch.
+28. **Confirmation**: Stopping requires confirmation that the action is irreversible. During `Executing`, the confirmation MUST warn that partial cluster changes may exist and require manual inspection.
+29. **Mutation and errors**: Confirmation MUST send a JSON Patch `add` operation at `/spec/cancelled` with value `true` to that same namespaced AgenticRun. It changes no other field and succeeds whether `cancelled` is absent or already present; `spec` remains required. The console MUST NOT optimistically change phase. A failed patch, including a stale-permission `403`, MUST leave the current phase visible and display the API error.
+30. **Failed presentation**: A cancelled run MUST retain the `Failed` phase badge and display `Stopped by user` as its cause in list and detail views. While any sandbox reference remains under rule 19, the detail view MUST also display `Sandbox shutdown in progress`.
+31. **Global presentation**: When rule 11 applies, the console MUST show `Emergency stopped`, not `Failed / Stopped by user`.
 
 ## Integration Contracts
 
@@ -82,7 +83,7 @@ For termination signals and existing terminal state:
 
 | Repo | Owns |
 |---|---|
-| **lightspeed-agentic-operator** | `spec.cancelled` API and CEL, reconcile precedence, condition mapping, hard deletion, RBAC revocation, resource discovery, cleanup retries, sandbox-reference clearing, global sweep, suspension Draining completion |
+| **lightspeed-agentic-operator** | `spec.cancelled` API and CEL, reconcile precedence, condition mapping, hard deletion, RBAC revocation, resource discovery, cleanup retries, sandbox-reference clearing, global sweep, suspension Draining completion, and safe resumption admission |
 | **lightspeed-agentic-console** | `patch agenticruns` access review, Stop control and confirmation, partial-change warning, failure-cause and shutdown-progress presentation |
 
 ## Child Spec Updates Required
@@ -90,7 +91,7 @@ For termination signals and existing terminal state:
 | Repo | Spec Files | Required updates |
 |---|---|---|
 | lightspeed-agentic-operator | `what/crd-api.md`, `what/run-lifecycle.md` | Add the one-way cancellation field, mutable-spec exception, condition mapping, precedence, and terminal race rules. |
-| lightspeed-agentic-operator | `what/system-config.md`, `what/sandbox-execution.md`, `how/reconciler.md` | Replace best-effort terminal-only suspension cleanup with hard deletion, direct discovery, terminal retries, sandbox-reference clearing, and teardown-based Draining completion. |
+| lightspeed-agentic-operator | `what/system-config.md`, `what/sandbox-execution.md`, `how/reconciler.md` | Replace best-effort terminal-only suspension cleanup with hard deletion, direct discovery, terminal retries, sandbox-reference clearing, teardown-based Draining completion, safe resumption admission, and reusable-template protection. |
 | lightspeed-agentic-console | `what/run-lifecycle.md`, `how/k8s-data-layer.md` | Replace the execution-only planned stop rule with active-phase visibility, `patch agenticruns` access review, patch behavior, and failure/progress presentation. |
 
 ## Required Test Coverage
@@ -105,13 +106,13 @@ For termination signals and existing terminal state:
 - Label/owner discovery finds workloads with missing status references and active leaked/orphaned workloads.
 - Cleanup errors requeue, status references remain until complete, and successful retry clears them.
 - Late Result CRs and late sandbox creation cannot advance or restart a stopped run.
-- Suspension remains Draining until both workloads and access are gone, then reaches AdminActivated.
+- Suspension remains Draining until both workloads and access are gone, then reaches AdminActivated; an attempted deactivation is rejected before that transition.
 
 ### Agentic Console
 
 - Stop appears only in active sandbox phases and uses namespaced `patch agenticruns` access review.
 - A denied access review makes the Stop control unavailable; the console does not inspect user groups.
-- Confirmation patches `spec.cancelled=true`; errors do not optimistically change phase.
+- Confirmation targets the reviewed namespace and sends JSON Patch `add` at `/spec/cancelled` with value `true`; errors do not optimistically change phase.
 - Execution confirmation includes the partial-change warning.
 - Cancelled runs show `Failed` with `Stopped by user`; remaining sandbox status shows shutdown progress.
 - Simultaneous pending signals render the global `EmergencyStopped` outcome.
