@@ -80,3 +80,8 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0040](0040-agentic-run-termination.md) | Unified hard-stop contract for per-run cancellation and global suspension | agentic-operator, agentic-console |
+
+### Sandbox Credentials (2026-09)
+| # | Decision | Repos |
+|---|---|---|
+| [0041](0041-sandbox-sdk-delegated-tokens.md) | SDK-delegated short-lived tokens; Azure Entra ID via built-in `AsyncAzureOpenAI`, Bedrock STS assume-role via botocore | agentic-sandbox, agentic-operator |

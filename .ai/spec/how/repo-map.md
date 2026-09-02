@@ -95,6 +95,8 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Agent run API (`/v1/agent/run`) | lightspeed-agentic-sandbox | `what/run-api.md` |
 | LLM provider contract (Claude, Gemini, OpenAI) | lightspeed-agentic-sandbox | `what/provider-contract.md` |
 | Configuration (env vars, provider selection) | lightspeed-agentic-sandbox | `what/configuration.md` |
+| Azure OpenAI Entra ID / API-key credential resolution | lightspeed-agentic-sandbox | [OLS-3050] `what/configuration.md` (rule 9a), `what/provider-contract.md` (rules 30, 39), `how/provider-architecture.md`; validation in agentic-operator `what/crd-api.md` (rule 21a); ADR `decisions/0041-sandbox-sdk-delegated-tokens.md` |
+| AWS Bedrock static-key / STS assume-role credential resolution | lightspeed-agentic-sandbox | [OLS-4092] `what/configuration.md` (rule 9b), `what/provider-contract.md` (rule 39), `how/provider-architecture.md`; validation in agentic-operator `what/crd-api.md` (rule 21b); ADR `decisions/0041-sandbox-sdk-delegated-tokens.md`. Anthropic-on-Bedrock model path unchanged. |
 | Health probes | lightspeed-agentic-sandbox | `what/health-probes.md` |
 | Provider architecture (adapters) | lightspeed-agentic-sandbox | `how/provider-architecture.md` |
 
