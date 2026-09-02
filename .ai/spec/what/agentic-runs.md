@@ -27,7 +27,7 @@ An external event source creates an `AgenticRun` CR to initiate a workflow. Any 
 5. The agentic-operator detects the new AgenticRun CR and adds a finalizer.
 6. The operator checks the cluster-scoped `ApprovalPolicy` (singleton named "cluster") for the analysis approval gate.
 7. If approval is required, the operator waits for an `AgenticRunApproval` CR granting analysis. If automatic, it proceeds immediately.
-8. The operator creates an input ConfigMap with the analysis **query** (request input), **system instructions**, output schema, context, and a pre-filled Result CR template. It then provisions a sandbox pod (bare-pod or sandbox-claim mode) with the ConfigMap mounted at `/input/`. [OLS-3066] [PLANNED: OLS-3491] System instructions are materialized onto `AgenticRun.spec.analysis.instructions` at create (adapter override > `OLSConfig.spec.agenticOLS.instructions.analysis` > built-in) and passed on the system channel; `query` carries `spec.request` only (plus existing revision suffix). See agentic-operator `what/crd-api.md` and `what/sandbox-execution.md`.
+8. The operator creates an input ConfigMap with the analysis **query** (request input), **system instructions**, output schema, context, and a pre-filled Result CR template. It then provisions a sandbox pod (bare-pod or sandbox-claim mode) with the ConfigMap mounted at `/input/`. [OLS-3066] [PLANNED: OLS-3491] System instructions are resolved from the step's `Agent` CR (`Agent.spec.instructions.analysis` when non-empty, else product built-in) and passed on the system channel via the `system-prompt` ConfigMap key; `query` carries `spec.request` only (plus existing revision suffix). See agentic-operator `what/crd-api.md` and `what/sandbox-execution.md`.
 9. The sandbox pod runs the agent autonomously (batch execution — no HTTP). The agent executes using the configured LLM provider (Anthropic, Gemini, or OpenAI) and produces structured remediation options. Each option contains a concrete remediation script (ordered bash commands using kubectl/oc) and RBAC requirements derived from those commands. Analysis **instructions** require inspecting cluster state before diagnosing and deriving RBAC by tracing every command in the script. [OLS-3066]
 10. The sandbox creates the `AnalysisResult` CR via `oc create` + `oc patch --subresource=status`, merging the agent output into the operator-provided template. The operator watches for this CR via `Owns()` and is automatically enqueued when it appears. [OLS-3066]
 11. The operator reads the `AnalysisResult` CR and updates the AgenticRun conditions accordingly.
@@ -43,21 +43,21 @@ An external event source creates an `AgenticRun` CR to initiate a workflow. Any 
 ### Phase 4: Execution
 
 17. The operator materializes RBAC (ServiceAccount, Role, RoleBinding) scoped to the approved option's requirements. When a remediation step is an MCP tool call rather than an `oc`/`kubectl` command, its RBAC is resolved via the `_meta` contract → oc-IR fallback → fail-closed order in `mcp-tool-rbac.md` (OLS-3680), with a hard deny ceiling applied before materialization.
-18. The operator creates an input ConfigMap with the execution **query** (approved option JSON) and **system instructions**, then provisions a sandbox pod. [OLS-3066] [PLANNED: OLS-3491] Execution instructions (follow script exactly; dry-run mutations) are on the system channel via materialized `spec.execution.instructions`.
+18. The operator creates an input ConfigMap with the execution **query** (approved option JSON) and **system instructions**, then provisions a sandbox pod. [OLS-3066] [PLANNED: OLS-3491] Execution instructions (follow script exactly; dry-run mutations) are resolved from the execution step's Agent CR and passed on the system channel.
 19. The sandbox agent executes the remediation actions by running the approved bash commands in order.
 20. The sandbox creates the `ExecutionResult` CR via `oc`, and the operator processes it upon watch notification. [OLS-3066]
 
 ### Phase 5: Verification
 
 21. If verification is configured, the operator checks the approval gate for verification.
-22. The operator calls the sandbox with a verification **query** (option + execution output) and verification **system instructions** [PLANNED: OLS-3491]. The verification instructions require retrying convergence-dependent checks (alerts, metrics, pod readiness) with appropriate wait intervals before reporting failure.
+22. The operator calls the sandbox with a verification **query** (option + execution output) and verification **system instructions** resolved from the verification step's Agent CR [PLANNED: OLS-3491]. The verification instructions require retrying convergence-dependent checks (alerts, metrics, pod readiness) with appropriate wait intervals before reporting failure.
 23. On success, the operator stores the result in a `VerificationResult` CR and the AgenticRun moves to Completed.
 24. On failure, the operator stores the result in a `VerificationResult` CR and moves to the Escalation phase.
 
 ### Phase 6: Escalation
 
 25. If verification fails, the operator checks the approval gate for escalation.
-26. The operator calls the sandbox with an escalation **query** payload and escalation **system instructions** resolved at call time from cluster `agenticOLS.instructions.escalation` or built-in (no per-run field in OLS-3491). [PLANNED: OLS-3491]
+26. The operator calls the sandbox with an escalation **query** payload and escalation **system instructions** resolved from the escalation step's Agent CR (`Agent.spec.instructions.escalation` when non-empty, else built-in). [PLANNED: OLS-3491]
 27. The result is stored in an `EscalationResult` CR and the AgenticRun moves to Escalated.
 
 ### Cleanup
