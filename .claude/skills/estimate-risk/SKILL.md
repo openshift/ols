@@ -1,7 +1,7 @@
 ---
 name: estimate-risk
 description: >
-  Assess risk level (1/2/3) for OLS Jira stories using the team's risk rubric.
+  Assess risk level (0/1/2/3) for OLS Jira stories using the team's risk rubric.
   Fetches the story, applies the decision tree, sets the Risk Score field, and
   adds the assessment as a comment. Use for on-demand assessment or
   after creating a new story.
@@ -32,9 +32,10 @@ Works for Stories, Bugs, Tasks, Weaknesses, and Vulnerabilities.
 Read the full rubric from the OLS repo root: `risk-level-rubric.md`
 
 You MUST read this file before assessing. It contains:
-- Risk level definitions (1, 2, 3) with customer impact and review requirements
+- Risk level definitions (0, 1, 2, 3) with customer impact and review requirements
 - Classification examples by change type
 - Decision tree for determining risk level
+- Preapproved task types and circuit breakers for Risk 0
 - Edge cases (cross-repo, CVEs, spikes, feature flags)
 
 ## Workflow
@@ -74,10 +75,12 @@ Using the rubric you read in Step 1:
    - External contract change? → Risk 3
    - User-visible behavior change? → Risk 3
    - Internal logic change? → Risk 2
-   - Mechanical/cosmetic change? → Risk 1
+   - Mechanical/cosmetic change, preapproved task type? → Risk 0
+   - Mechanical/cosmetic change otherwise? → Risk 1
 3. **Check classification examples** — match the change type to the table
 4. **Check edge cases** — cross-repo, CVE, spike, feature flag
-5. **When in doubt, bias UP** — Risk 2 → Risk 3 is safer than the reverse
+5. **Before assigning Risk 0**, confirm the task type is on the preapproved list and no circuit breaker applies
+6. **When in doubt, bias UP** — Risk 2 → Risk 3 is safer than the reverse
 
 #### 3c. Set Risk Score on the Jira issue
 
@@ -86,7 +89,7 @@ Use `mcp__atlassian__editJiraIssue` with:
 - `issueIdOrKey`: the story key
 - `fields`: `{"customfield_10976": <risk_level>}`
 
-Where `<risk_level>` is 1, 2, or 3.
+Where `<risk_level>` is 0, 1, 2, or 3.
 
 #### 3d. Add risk assessment comment
 
@@ -94,7 +97,7 @@ Use `mcp__plugin_atlassian_atlassian__addCommentToJiraIssue` with:
 - `cloudId`: `redhat.atlassian.net`
 - `issueIdOrKey`: the story key
 - `contentFormat`: `markdown`
-- `commentBody`: `**AI Risk Assessment:** Risk {1|2|3} — {one-line impact summary}\nRationale: {why this classification, referencing the rubric}`
+- `commentBody`: `**AI Risk Assessment:** Risk {0|1|2|3} — {one-line impact summary}\nRationale: {why this classification, referencing the rubric}`
 
 Do NOT modify the description field.
 
@@ -106,7 +109,7 @@ For each story, report:
 
 ## Jira Field Reference
 
-- **Risk Score field**: `customfield_10976` (number, float — set to 1, 2, or 3)
+- **Risk Score field**: `customfield_10976` (number, float — set to 0, 1, 2, or 3)
 - **Cloud ID**: `redhat.atlassian.net`
 - **Project**: `OLS`
-- **Scale**: 1 (low), 2 (medium), 3 (high)
+- **Scale**: 0 (autonomous, preapproved types only), 1 (low), 2 (medium), 3 (high)
