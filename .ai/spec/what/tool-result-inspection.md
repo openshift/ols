@@ -4,6 +4,12 @@ Cross-repository behavioral specification for OLS-3928.
 
 This feature inspects untrusted tool results before a main model can use them. The feature uses a separate LLM classifier call.
 
+## Normative Ownership
+
+This document is the normative source for shared tool-result inspection policy across Classic OLS and the DeepAgents runtime. Repository specifications MUST conform to this contract. They MUST define only local interception points, configuration mapping, transport behavior, lifecycle integration, identifiers, and tests. They MUST NOT redefine shared classifier semantics, retry timing, chunking, failure policy, data restrictions, or dependency exclusions.
+
+The repositories can deliver the coordinated change together. Conformance does not require this specification to merge before the repository-specific changes.
+
 ## Scope
 
 1. [PLANNED: OLS-3928] Classic OLS MUST inspect results and errors from every tool in its centralized tool loop.
