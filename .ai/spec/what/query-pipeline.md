@@ -60,7 +60,8 @@ End-to-end flow for processing a user question: from console submission through 
     - Approval gates are checked (`never`/`always`/`tool_annotations`). If approval required, an `approval_required` event is emitted and execution blocks until the user responds.
     - Tools execute concurrently with retries (2 retries for transient failures, exponential backoff).
     - Tool output is truncated to fit the tool budget.
-    - Results are fed back to the LLM for the next iteration.
+    - [PLANNED: OLS-3928] The service inspects each model-visible result or error before SSE emission or model reinjection. See `tool-result-inspection.md`.
+    - Results are fed back to the LLM for the next iteration only after all results in the concurrent round pass inspection.
 27. The tool-calling loop runs up to `max_iterations` (ask=5, troubleshooting=15 by default). On the final iteration, tools are removed to force a text-only answer.
 28. Streaming events are emitted throughout: `token`, `reasoning`, `tool_call`, `tool_result`, `approval_required`.
 
@@ -101,7 +102,7 @@ End-to-end flow for processing a user question: from console submission through 
 | `reasoning` | id, reasoning | Chain-of-thought chunk |
 | `tool_call` | name, args, id, type | LLM requests tool execution |
 | `approval_required` | approval_id, tool metadata | User must approve tool |
-| `tool_result` | id, status, content, round | Tool execution completed |
+| `tool_result` | id, status, content, round | Tool execution completed and [PLANNED: OLS-3928] all results in its concurrent round passed inspection |
 | `skill_selected` | name | Skill matched to query |
 | `history_compression_start/end` | — | History being compressed |
 | `end` | referenced_documents, token counts | Stream complete |
