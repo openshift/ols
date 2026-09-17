@@ -24,3 +24,7 @@ All OLS features must work without internet access, provided the LLM provider is
 - LLM provider must be reachable but can be on-premise (RHEL AI/vLLM)
 - All MCP tools must function without internet
 - Affects every new feature — must always consider the disconnected case
+
+## Feature Contracts
+
+- Agentic disconnected operation and its Gemma 4 product-e2e verification are specified in `what/agentic-disconnected-operation.md` [PLANNED: OLS-3472].

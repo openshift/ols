@@ -22,6 +22,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Observability (metrics, logging) | lightspeed-service | `what/observability.md` |
 | Security (TLS, redaction, input validation) | lightspeed-service | `what/security.md` |
 | Configuration model | lightspeed-service | `what/config.md`, `how/config.md` |
+| Reusable model-parameterized RHOAI/vLLM test provisioning | lightspeed-service | [PLANNED: OLS-3472] `how/e2e-rhoai.md` |
 
 ## Classic OLS — Operator
 
@@ -69,6 +70,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Concern | Repo | Spec Files |
 |---|---|---|
 | AgenticRun lifecycle (analysis → execution → verification) | lightspeed-agentic-operator | `what/run-lifecycle.md` |
+| Disconnected Gemma 4 product-e2e | lightspeed-agentic-operator | [PLANNED: OLS-3472] `how/disconnected-product-e2e.md` |
 | Per-run cancellation and global sandbox hard-stop | lightspeed-agentic-operator | [PLANNED: OLS-3298, OLS-4018] `what/crd-api.md`, `what/run-lifecycle.md`, `what/system-config.md`, `what/sandbox-execution.md`, `how/reconciler.md` |
 | Approval gates & policies | lightspeed-agentic-operator | `what/approval.md` |
 | Agentic CRD API (AgenticRun, Agent, LLMProvider) | lightspeed-agentic-operator | `what/crd-api.md` |
@@ -97,6 +99,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Configuration (env vars, provider selection) | lightspeed-agentic-sandbox | `what/configuration.md` |
 | Health probes | lightspeed-agentic-sandbox | `what/health-probes.md` |
 | Provider architecture (adapters) | lightspeed-agentic-sandbox | `how/provider-architecture.md` |
+| Gemma 4 through RHOAI/vLLM OpenAI-compatible API | lightspeed-agentic-sandbox | [PLANNED: OLS-3472] `what/configuration.md`, `what/provider-contract.md` |
 
 ## Agentic OLS — Alerts Adapter
 
@@ -159,6 +162,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Feature | Parent Spec | Repos |
 |---|---|---|
 | Agentic run lifecycle | `what/agentic-runs.md` | alerts-adapter, team-harness event-adapter [PROTOTYPE], agentic-operator, agentic-sandbox, agentic-console |
+| Agentic disconnected operation (Gemma 4 + RHOAI/vLLM product-e2e) | `what/agentic-disconnected-operation.md` | service, agentic-operator, agentic-sandbox |
 | Agentic run termination (per-run cancellation, global hard-stop) | `what/agentic-run-termination.md` | agentic-operator, agentic-console |
 | Agentic security (approval auth, SA isolation) | `what/agentic-security.md` | agentic-operator, agentic-console |
 | MCP tool RBAC resolution (`_meta` contract, oc-IR fallback) | `what/mcp-tool-rbac.md` | agentic-operator, agentic-sandbox, operator (ocp-mcp) |
