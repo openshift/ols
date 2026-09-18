@@ -9,6 +9,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Query processing & prompt composition | lightspeed-service | `what/query-processing.md`, `how/query-pipeline.md` |
 | LLM provider support (OpenAI, Azure, WatsonX, RHEL AI) | lightspeed-service | `what/llm-providers.md`, `how/llm-providers.md` |
 | MCP tool integration & tool calling loop | lightspeed-service | `what/tools.md`, `how/tools.md` |
+| Tool-result prompt-injection inspection | lightspeed-service | Parent `what/tool-result-inspection.md`; child `what/tools.md`, `how/tools.md` |
 | MCP apps (UI resources, tool proxy) | lightspeed-service | `what/mcp-apps.md` |
 | RAG retrieval at query time | lightspeed-service | `what/rag.md` |
 | OKP retrieval (Solr hybrid search) | lightspeed-service | `what/rag.md` |
@@ -95,6 +96,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Agent run API (`/v1/agent/run`) | lightspeed-agentic-sandbox | `what/run-api.md` |
 | LLM provider contract (Claude, Gemini, OpenAI) | lightspeed-agentic-sandbox | `what/provider-contract.md` |
 | Configuration (env vars, provider selection) | lightspeed-agentic-sandbox | `what/configuration.md` |
+| DeepAgents tool-result prompt-injection inspection | lightspeed-agentic-sandbox | Parent `what/tool-result-inspection.md`; child `what/provider-contract.md`, `what/configuration.md` |
 | Azure OpenAI Entra ID / API-key credential resolution | lightspeed-agentic-sandbox | [OLS-3050] `what/configuration.md` (rule 9a), `what/provider-contract.md` (rules 30, 39), `how/provider-architecture.md`; validation in agentic-operator `what/crd-api.md` (rule 21a); ADR `decisions/0041-sandbox-sdk-delegated-tokens.md` |
 | AWS Bedrock static-key / STS assume-role credential resolution | lightspeed-agentic-sandbox | [OLS-4092] `what/configuration.md` (rule 9b), `what/provider-contract.md` (rule 39), `how/provider-architecture.md`; validation in agentic-operator `what/crd-api.md` (rule 21b); ADR `decisions/0041-sandbox-sdk-delegated-tokens.md`. Anthropic-on-Bedrock model path unchanged. |
 | Health probes | lightspeed-agentic-sandbox | `what/health-probes.md` |
@@ -167,6 +169,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | RAG pipeline (OKP + BYOK) | `what/rag-pipeline.md` | rag-content, service, operator |
 | Deployment lifecycle | `what/deployment-lifecycle.md` | operator, service, console, alerts-adapter [PLANNED: OLS-3236], agentic-console [PLANNED: OLS-3236] |
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |
+| Tool-result prompt-injection inspection | `what/tool-result-inspection.md` | service, operator, agentic-operator, agentic-sandbox |
 | Compliance audit logging | `what/audit-logging.md` | agentic-operator, agentic-sandbox, service, operator, agentic-console |
 | Temporary audit log storage | `what/templog.md` | lightspeed-otel-collector, operator, agentic-operator, agentic-sandbox |
 | Multicluster operations | `what/multicluster-ops.md` | hub, hub-ui, agentic-operator, alerts-adapter |

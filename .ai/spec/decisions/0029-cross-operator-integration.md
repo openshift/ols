@@ -5,22 +5,28 @@
 
 ## Context
 
-Two operators share the same namespace but reconcile different API groups. Agentic-operator had duplicated pod spec construction code (PodSpecBuilder and EnsureAgentTemplate each independently implementing LLM env var injection, MCP wiring, skills mounting, audit env vars, probes, and security context). Lightspeed-operator already has production-grade reconciliation, image management, status reporting, and disconnected support via related_images.json.
+Two operators share one namespace but reconcile different API groups. The agentic operator had two separate paths that built sandbox pod specifications. The classic operator already owns operand images, shared sandbox configuration, and cross-component connection data.
 
 ## Decision
 
-Agentic operands (alerts-adapter, agentic-console-plugin) are deployed by lightspeed-operator, not agentic-operator. Inter-operator communication uses a ConfigMap-based handoff: lightspeed-operator builds a base PodSpec for sandbox pods and serializes it into `lightspeed-sandbox-config` ConfigMap; agentic-operator reads and overlays per-run specifics. If the ConfigMap is missing after bounded retries, agentic-operator fails hard with no fallback.
+The classic operator deploys agentic operands such as the alerts adapter and agentic console plugin. The agentic operator does not deploy these operands.
+
+Inter-operator communication uses the `lightspeed-agentic-configuration` ConfigMap. The classic operator writes a thin sandbox PodSpec and shared values to this ConfigMap.
+
+The agentic operator reads the ConfigMap and adds values for each run. It uses one overlay path for bare pods and sandbox claims.
+
+The agentic operator starts without the ConfigMap. An individual run fails with a controlled error when the ConfigMap is not available.
 
 ## Alternatives Considered
 
-- **Agentic-operator deploys its own operands** — rejected because the fire-and-forget RunnableFunc pattern had no reconciliation loop, no related_images.json, no status reporting, no CRD deployment config, and no cleanup
-- **Duplicate pod spec construction** — rejected because of maintenance burden and divergence risk between the two code paths
+- **Agentic operator deploys its own operands.** Rejected because this choice duplicates image and operand lifecycle management.
+- **Duplicate pod-spec construction.** Rejected because the bare-pod and sandbox-claim paths can produce different sandbox configuration.
 
 ## Consequences
 
-- Single overlay code path in agentic-operator
-- Mode (bare-pod vs sandbox-claim) determines delivery only after PodSpec is fully built
-- Lightspeed-operator owns all infrastructure knowledge
-- Fail-hard ensures misconfigurations are caught early
-- No backward compatibility with old self-contained pod spec building
-- Both operators must be running for the system to function
+- The agentic operator has one overlay path.
+- The sandbox mode controls delivery after the operator builds the complete PodSpec.
+- The classic operator owns the shared handoff values.
+- An individual AgenticRun fails when the handoff ConfigMap is not available.
+- The old self-contained pod-spec paths are not used.
+- Both operators must run before an AgenticRun can start a sandbox.
