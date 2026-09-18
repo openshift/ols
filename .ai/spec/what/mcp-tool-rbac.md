@@ -13,6 +13,8 @@ The operator does not need to know whether the RBAC came from `_meta`, oc-IR, or
 
 The gap this spec closes is **teaching the analysis agent how to derive RBAC for MCP tool calls** — via analysis instructions that direct the agent to read `_meta` from trusted servers or express tool steps as equivalent `oc` commands.
 
+[PLANNED: OLS-4060] MCP server definitions are run-level only: `AgenticRun.spec.tools.mcpServers` is the single MCP server list for analysis, execution, verification, and escalation. Per-step tool overrides are removed, so analysis sees the same MCP servers that later steps may use and can derive remediation RBAC and validation requirements from the complete tool universe.
+
 ## Problem
 
 For `oc`/`kubectl` steps, the analysis agent derives least-privilege RBAC by tracing the concrete commands. For MCP tool calls there is no command to trace, and the RBAC target is often invisible in the tool arguments:
@@ -30,7 +32,7 @@ The `_meta["openshift.io/rbac"]` contract gives the analysis agent an authoritat
 
 These rules govern what the **analysis agent** does when proposing a remediation that includes MCP tool calls. The agent derives RBAC and reports it as standard `PolicyRule`s in the `RemediationOption` — the same format used for `oc`/`kubectl` steps. The operator materializes whatever PolicyRules appear in the approved option; it does not participate in MCP-specific resolution.
 
-1. **`_meta` contract (primary).** The analysis agent reads `tool._meta["openshift.io/rbac"]` from the MCP server's `tools/list` response and resolves the required RBAC from it. The contract and its schema are defined by the OLS-3680 RFE to the OpenShift MCP server team.
+1. **`_meta` contract (primary).** The analysis agent reads `tool._meta["openshift.io/rbac"]` from the MCP server's `tools/list` response and resolves the required RBAC from it. The contract and its schema are defined by the OLS-3680 RFE to the OpenShift MCP server team. [PLANNED: OLS-4060] Because MCP servers are defined only at `AgenticRun.spec.tools.mcpServers` and are shared by every step, the analysis agent can inspect `tools/list` for every MCP server that execution, verification, or escalation may use.
 2. **oc-IR derivation (fallback).** When a tool has no `_meta` RBAC (server has not adopted the contract, or the server is not on the trusted list in the analysis instructions), the analysis agent MUST express the step's effect as equivalent `oc`/`kubectl` command intermediate representation, and RBAC is derived from it via the script-grounded pipeline (decision 0033). This is why the common ocp-mcp core tools remain resolvable even before the server adopts `_meta`.
 3. **Fail-closed (terminal).** A step resolvable by neither path MUST cause the containing remediation **option** to be rejected — not the whole analysis. If every option is rejected, the run terminates in `Escalated` with a diagnosis naming the unresolvable tool(s) and, where applicable, which declaration would resolve it.
 
@@ -75,7 +77,7 @@ The RBAC requirements attached to each `RemediationOption` (`agentic-runs.md` �
 | Repo | Owns |
 |---|---|
 | **lightspeed-operator** (ocp-mcp) | Publishing `_meta["openshift.io/rbac"]` on the shipped `openshift-mcp-server` (RFE target); the deny-list TOML that prevents Secret/RBAC access server-side |
-| **lightspeed-agentic-operator** | Analysis instructions that direct the agent to read `_meta` from trusted servers, distinguish declaration states, resolve against call arguments, express oc-IR fallback, and fail closed. RBAC materialization is unchanged — the operator materializes whatever PolicyRules the agent reports, same as `oc`/`kubectl` steps |
+| **lightspeed-agentic-operator** | Run-level `AgenticRun.spec.tools` semantics for MCP/skills/requiredSecrets; analysis instructions that direct the agent to read `_meta` from trusted servers, distinguish declaration states, resolve against call arguments, express oc-IR fallback, and fail closed. RBAC materialization is unchanged — the operator materializes whatever PolicyRules the agent reports, same as `oc`/`kubectl` steps |
 | **lightspeed-agentic-sandbox** | Agent runtime that executes MCP tool calls and oc-IR commands; no RBAC derivation logic — the agent follows operator-provided analysis instructions |
 
 ## Child Spec Updates Required
@@ -85,7 +87,7 @@ These child specs describe behavior this file extends. Each MUST be updated (sep
 | Repo | Spec File | Update |
 |---|---|---|
 | lightspeed-operator | `what/ocpmcp.md` | Add rule: shipped server publishes per-tool `_meta["openshift.io/rbac"]` (RFE); note the TOML deny-list prevents Secret/RBAC access server-side. |
-| lightspeed-agentic-operator | `what/sandbox-execution.md` rule 11 | Analysis instructions direct agent to derive MCP-tool RBAC from trusted `_meta` first, oc-IR fallback otherwise. |
+| lightspeed-agentic-operator | `what/crd-api.md`, `what/sandbox-execution.md` rule 11 | Remove per-step tool definitions; make `AgenticRun.spec.tools` the single tools source for all steps. Analysis instructions direct agent to derive MCP-tool RBAC from trusted `_meta` first, oc-IR fallback otherwise. |
 | lightspeed-agentic-sandbox | `what/configuration.md` | Note oc-IR expression of MCP tool steps for RBAC derivation when `_meta` is absent. |
 
 ## Constraints
@@ -94,10 +96,12 @@ These child specs describe behavior this file extends. Each MUST be updated (sep
 - The `metrics` toolset (Thanos/Alertmanager, per `ocpmcp.md` rule 17) may authorize via monitoring routes / aggregated APIs rather than resource CRUD; expressing that RBAC (e.g. binding `cluster-monitoring-view`) is an open item raised in the RFE and not yet modeled here.
 - The design cannot compute least-privilege RBAC for genuinely unbounded tools (Helm); those fail closed unless resolved by other means.
 - The operator's RBAC materialization pipeline is generic — it does not distinguish MCP-derived from oc-derived PolicyRules. No MCP-specific operator code is needed.
+- [PLANNED: OLS-4060] Run-level tools intentionally expose the same MCP servers, skills, and required secrets to every sandbox step. This simplifies API and operator behavior but removes per-step tool isolation; step behavior is constrained by instructions, approval gates, and per-step ServiceAccount RBAC.
 
 ## Planned Changes
 
 | Ticket | Summary |
 |---|---|
 | [PLANNED: OLS-3680] | MCP tool RBAC resolution: analysis instructions for `_meta`-published contract (operator-managed servers) → oc-IR fallback → fail-closed. RFE to the OpenShift MCP server team for `_meta["openshift.io/rbac"]`. |
+| [PLANNED: OLS-4060] | Simplify tool configuration to run-level only (`AgenticRun.spec.tools`) so analysis sees every MCP server used by later steps for RBAC derivation and validation planning. |
 | [PLANNED] | Non-resource / aggregated-API RBAC form for the `metrics` toolset (Thanos/Alertmanager), pending alignment in the RFE. |

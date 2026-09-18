@@ -74,6 +74,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Approval gates & policies | lightspeed-agentic-operator | `what/approval.md` |
 | Agentic CRD API (AgenticRun, Agent, LLMProvider) | lightspeed-agentic-operator | `what/crd-api.md` |
 | Sandbox provisioning & execution | lightspeed-agentic-operator | `what/sandbox-execution.md` |
+| Run-level tool configuration (MCP servers, skills, required secrets) | lightspeed-agentic-operator | [PLANNED: OLS-4060] `what/crd-api.md`, `what/sandbox-execution.md`, `what/run-lifecycle.md` |
 | Reconciler implementation | lightspeed-agentic-operator | `how/reconciler.md` |
 | CLI (oc-agentic) | lightspeed-agentic-operator | `how/cli.md` |
 | CLI binary distribution | lightspeed-agentic-operator | `how/cli-distribution.md` |
