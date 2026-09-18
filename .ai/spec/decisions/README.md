@@ -85,3 +85,8 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0041](0041-sandbox-sdk-delegated-tokens.md) | SDK-delegated short-lived tokens; Azure Entra ID via built-in `AsyncAzureOpenAI`, Bedrock STS assume-role via botocore | agentic-sandbox, agentic-operator |
+
+### Agentic Data Collection (2026-09)
+| # | Decision | Repos |
+|---|---|---|
+| [0042](0042-agentic-data-collection-via-otel.md) | Trace-only Agentic collection with mechanically classified raw candidates and Dataverse-owned logical models | operator, agentic-operator, agentic-sandbox, collector, Dataverse data product |

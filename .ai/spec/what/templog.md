@@ -6,13 +6,13 @@ Stopgap audit log persistence for environments without cluster logging or SIEM. 
 
 1. **Agentic system only.** This feature stores audit events from the agentic-operator and agentic-sandbox. OLS service audit events are out of scope.
 
-2. **Default on.** `AgenticOLSConfig.spec.templog` defaults to `true`. The Collector deploys unless the admin explicitly sets `spec.templog: false`.
+2. **Default on.** `AgenticOLSConfig.spec.templog` defaults to `true`. Its log/PostgreSQL pipeline deploys unless the admin explicitly sets `spec.templog: false`.
 
 3. **Run-scoped lifecycle.** Audit logs are tied to their AgenticRun CR. When an AgenticRun is deleted, a finalizer ensures all associated rows are deleted from PostgreSQL before the CR is removed. No separate retention policy, TTL, or eviction logic.
 
 4. **Independent of tracing.** `spec.audit.otel.endpoint` handles spans (tracing). This feature handles logs. Both can operate simultaneously. The custom Collector runs its own log-only pipeline; it does not interfere with the tracing endpoint.
 
-5. **Independent of audit toggle.** `spec.templog` controls Collector deployment. `spec.audit.enabled` controls audit event emission. If audit is disabled (`spec.audit.enabled: false`), the Collector deploys but receives no data. If audit is absent (defaults to enabled), templog works.
+5. **Independent of audit toggle.** `spec.templog` controls the templog pipeline. `spec.audit.enabled` controls audit event emission. If audit is disabled (`spec.audit.enabled: false`), the templog pipeline may remain deployed but receives no data. If audit is absent (defaults to enabled), templog works.
 
 6. **Dual emission preserved.** Structured JSON to stdout always emits when audit is enabled (existing behavior). OTLP log emission to the Collector is additive — it does not replace stdout.
 
@@ -54,7 +54,7 @@ Components:
 
 ```yaml
 spec:
-  templog: true   # default: true. Set false to disable Collector deployment.
+  templog: true   # default: true. Set false to disable the templog pipeline, not other Collector consumers.
 ```
 
 Single boolean. The operator derives all other configuration (Collector endpoint, Postgres DSN, schema name) from existing infrastructure.
@@ -63,10 +63,10 @@ Single boolean. The operator derives all other configuration (Collector endpoint
 
 | `spec.templog` | `spec.audit.enabled` | `spec.audit.otel.endpoint` | Behavior |
 |---|---|---|---|
-| true (or absent) | true (or absent) | absent | Collector deployed. Audit events emit to stdout + OTLP logs to Collector. No tracing. |
-| true (or absent) | true (or absent) | set | Collector deployed. Audit events emit to stdout + OTLP logs to Collector + OTLP spans to tracing endpoint. |
-| true (or absent) | false | any | Collector deployed but receives no data. Audit emission is off. |
-| false | any | any | Collector not deployed. Audit behavior unchanged from current. |
+| true (or absent) | true (or absent) | absent | Collector deployed for templog. Audit events emit to stdout + OTLP logs to Collector. No configured compliance trace export. |
+| true (or absent) | true (or absent) | set | Collector deployed for templog. Audit events emit to stdout + OTLP logs to Collector + OTLP spans to the configured compliance endpoint. |
+| true (or absent) | false | any | Collector deployed for templog but receives no compliance audit logs. |
+| false | any | any | Templog log pipeline is absent. The shared OTLP endpoint remains available for product traces and any other Collector consumer; compliance audit behavior is otherwise unchanged. |
 
 ## Schema & Data Model
 
@@ -161,75 +161,36 @@ Contents:
 
 Ships one artifact: a container image with the custom Collector binary.
 
-## Operator Wiring (lightspeed-operator)
+## Cross-Repository Wiring
 
-### When `spec.templog: true` (or absent)
+1. `AgenticOLSConfig.spec.templog` controls only the Collector's OTLP-log-to-PostgreSQL pipeline. The lightspeed-operator includes or removes that pipeline while preserving the Collector resources when another feature needs them.
+2. The existing `lightspeed-agentic-configuration` OTLP endpoint is shared by logs and traces and remains available independently of the templog setting. Disabling templog MUST NOT remove the endpoint from agentic-operator or sandbox pods or suppress Agentic product traces.
+3. Agentic producers receive no templog enablement value. When compliance audit and the shared OTLP endpoint are active, they emit the templog audit copies defined by their local audit specifications; Collector pipeline configuration determines whether those logs are stored.
+4. Disabling templog leaves the PostgreSQL schema and existing rows in place. It does not perform destructive cleanup.
 
-1. Deploy the custom Collector: Deployment, Service, ConfigMap, NetworkPolicy (the Collector's `postgres_admin` extension creates the `templogs` schema at startup — not via the Postgres bootstrap script)
-2. Set OTLP log endpoint env var on agentic-operator and sandbox pods, pointing at the Collector service: `<collector-service>.<namespace>.svc:4317`
+## AgenticRun Cleanup Boundary
 
-### When `spec.templog: false`
-
-1. Remove the Collector Deployment, Service, ConfigMap, NetworkPolicy if they exist
-2. Remove the OTLP log endpoint env var from agentic-operator and sandbox pods
-3. The `templogs` schema is left in place (no destructive cleanup of data on disable)
-
-## AgenticRun Finalizer & Cleanup
-
-### Agentic-operator responsibility
-
-- **Finalizer name:** `agentic.openshift.io/templog-cleanup`
-- **Added when:** AgenticRun CR is created and `templog` is enabled (agentic-operator reads this from an env var set by the lightspeed-operator)
-- **On AgenticRun deletion:**
-  1. Finalizer fires
-  2. Operator calls the Collector admin API: `DELETE /api/v1/logs?agentic_run_id=<uid>` (raw UUID with hyphens; collector normalizes)
-  3. On success, removes the finalizer — CR deletion proceeds
-  4. On failure (Postgres unreachable), finalizer blocks deletion and requeues with standard controller-runtime retry and backoff
-
-### Edge cases
-
-- **`templog` disabled after logs were written.** Finalizer was already added at AgenticRun creation. It still fires on deletion. The operator connects directly to Postgres (which it manages) to delete the rows. The finalizer does not depend on the Collector being present.
-- **Postgres unavailable.** Finalizer blocks. AgenticRun CR cannot be deleted until cleanup succeeds. Correct behavior for a compliance-adjacent feature.
-
-## Agentic Component Changes
-
-### Agentic-operator
-
-- When the OTLP log endpoint env var is set, emit audit events as OTLP log records to that endpoint
-- Dual emission: stdout always, OTLP when configured (same pattern as the existing tracing design)
-- Add `agentic.openshift.io/templog-cleanup` finalizer to new AgenticRuns when templog is enabled
-- Finalizer handler: delete audit log rows from Postgres on AgenticRun deletion
-
-### Agentic-sandbox
-
-- When the OTLP log endpoint env var is set, emit audit events as OTLP log records to that endpoint
-- Dual emission: stdout always, OTLP when configured
+The agentic-operator owns the `agentic.openshift.io/templog-cleanup` finalizer and calls the Collector admin API to remove run-scoped logs. The Collector owns PostgreSQL access. Exact retry, give-up, and finalizer-removal behavior belongs to the agentic-operator `what/templog.md` implementation contract; the agentic-operator does not connect directly to PostgreSQL.
 
 ## Repo Ownership
 
 | Repo | Templog Responsibilities |
 |---|---|
-| **lightspeed-otel-collector** | OCB manifest, custom `postgresexporter` Go code, Dockerfile, Konflux build pipeline. Ships the Collector container image. |
-| **lightspeed-operator** | Read `AgenticOLSConfig.spec.templog`. Deploy/remove Collector Deployment, Service, ConfigMap, NetworkPolicy (the Collector's `postgres_admin` extension creates the `templogs` schema at startup). Wire OTLP log endpoint to agentic pods. CRD change: add `spec.templog` to `AgenticOLSConfig`. |
-| **lightspeed-agentic-operator** | Add OTLP log emission when endpoint is configured. Add `agentic.openshift.io/templog-cleanup` finalizer to AgenticRuns. Finalizer handler: delete rows from `templogs.logs` on AgenticRun deletion. |
-| **lightspeed-agentic-sandbox** | Add OTLP log emission when endpoint is configured. |
+| **lightspeed-otel-collector** | OCB manifest, OTLP-log-to-PostgreSQL pipeline, schema administration, run-scoped cleanup API, and Collector image |
+| **lightspeed-operator** | Reconcile Collector resources and the conditional templog pipeline; publish the shared OTLP and admin connectivity handoff without using it as a templog gate |
+| **lightspeed-agentic-operator** | Own the `AgenticOLSConfig.spec.templog` API, emit audit log copies through shared OTLP, and implement run cleanup/finalizer behavior |
+| **lightspeed-agentic-sandbox** | Emit audit log copies through shared OTLP when compliance audit is enabled |
 
-## Child Spec Updates Required
+## Separation from Agentic Product Data Collection
 
-| Repo | File | Content |
-|---|---|---|
-| lightspeed-operator | `what/templog.md` | Collector lifecycle reconciliation, schema bootstrap, pod wiring |
-| lightspeed-agentic-operator | `what/crd-api.md` (update) | Add `spec.templog` to `AgenticOLSConfig` |
-| lightspeed-operator | `what/postgres.md` (update) | Document that the Collector's `postgres_admin` extension creates the `templogs` schema (not the Postgres bootstrap script) |
-| lightspeed-agentic-operator | `what/templog.md` | Finalizer implementation, OTLP log emission, Postgres cleanup |
-| lightspeed-agentic-operator | `what/audit-logging.md` (update) | Add OTLP log emission (dual: stdout + OTLP when endpoint configured) |
-| lightspeed-agentic-sandbox | `what/audit-logging.md` (update) | Add OTLP log emission (dual: stdout + OTLP when endpoint configured) |
+Templog is the only consumer of Agentic OTLP logs in the in-cluster Collector. Agentic product collection consumes traces only and has no PostgreSQL path. Its independent enablement, ready-file/export topology, and loss semantics are defined in `agentic-data-collection.md`.
 
 ## Cross-References
 
 - `audit-logging.md` — Audit event catalog, correlation model, structured JSON format
 - `agentic-runs.md` — AgenticRun lifecycle, CRD definitions, phase transitions
 - Lightspeed-operator `postgres.md` — PostgreSQL deployment, bootstrap, credentials
+- `agentic-data-collection.md` — Trace-only Agentic product-data candidate streams and Dataverse handoff
 
 ## Planned Changes
 

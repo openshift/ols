@@ -24,5 +24,5 @@ Agent code runs in sandboxed ephemeral pods, not in the operator process. Each A
 - Ephemeral pods are automatically cleaned up
 - Per-run SA requires cross-namespace finalizer cleanup (Kubernetes owner refs do not work cross-namespace)
 - Bare-pod mode works without Sandbox API CRDs
-- Sandbox wraps multiple LLM SDKs behind a unified `/v1/agent/run` HTTP endpoint
+- Sandbox pods consume mounted ConfigMap input and publish immutable Result CRs through the Kubernetes API; the batch workflow does not use the former `/v1/agent/run` handoff
 - Generic env vars (`LIGHTSPEED_PROVIDER`, `LIGHTSPEED_MODEL`) are mapped to SDK-specific vars inside the sandbox

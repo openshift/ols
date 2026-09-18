@@ -76,6 +76,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Reconciler implementation | lightspeed-agentic-operator | `how/reconciler.md` |
 | CLI (oc-agentic) | lightspeed-agentic-operator | `how/cli.md` |
 | CLI binary distribution | lightspeed-agentic-operator | `how/cli-distribution.md` |
+| Product data trace emission | lightspeed-agentic-operator | [PLANNED: OLS-3569] `what/data-collection.md`, `what/audit-logging.md`, `what/run-lifecycle.md` |
 
 ## Agentic OLS — Console
 
@@ -92,13 +93,14 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 
 | Concern | Repo | Spec Files |
 |---|---|---|
-| Agent run API (`/v1/agent/run`) | lightspeed-agentic-sandbox | `what/run-api.md` |
+| Batch agent input/result contract (ConfigMap/Pod/Result CR) | lightspeed-agentic-sandbox | `what/run-api.md` |
 | LLM provider contract (Claude, Gemini, OpenAI) | lightspeed-agentic-sandbox | `what/provider-contract.md` |
 | Configuration (env vars, provider selection) | lightspeed-agentic-sandbox | `what/configuration.md` |
 | Azure OpenAI Entra ID / API-key credential resolution | lightspeed-agentic-sandbox | [OLS-3050] `what/configuration.md` (rule 9a), `what/provider-contract.md` (rules 30, 39), `how/provider-architecture.md`; validation in agentic-operator `what/crd-api.md` (rule 21a); ADR `decisions/0041-sandbox-sdk-delegated-tokens.md` |
 | AWS Bedrock static-key / STS assume-role credential resolution | lightspeed-agentic-sandbox | [OLS-4092] `what/configuration.md` (rule 9b), `what/provider-contract.md` (rule 39), `how/provider-architecture.md`; validation in agentic-operator `what/crd-api.md` (rule 21b); ADR `decisions/0041-sandbox-sdk-delegated-tokens.md`. Anthropic-on-Bedrock model path unchanged. |
 | Health probes | lightspeed-agentic-sandbox | `what/health-probes.md` |
 | Provider architecture (adapters) | lightspeed-agentic-sandbox | `how/provider-architecture.md` |
+| Product transcript trace events | lightspeed-agentic-sandbox | [PLANNED: OLS-3569] `what/data-collection.md`, `what/audit-logging.md`, `what/provider-contract.md`, `what/run-api.md` |
 
 ## Agentic OLS — Alerts Adapter
 
@@ -138,6 +140,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Telemetry pipeline (receivers, processors, exporters) | lightspeed-otel-collector | `what/pipeline.md` |
 | Spoke-to-hub telemetry forwarding | lightspeed-otel-collector | `what/pipeline.md` |
 | Cluster identity labeling | lightspeed-otel-collector | `what/pipeline.md` |
+| Agentic product-data classification and JSONL spool | lightspeed-otel-collector | [PLANNED: OLS-3569] `what/agentic-data-collection.md`, `what/pipeline.md` |
 
 ## Agentic OLS — Event Adapter (Prototype)
 
@@ -169,6 +172,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |
 | Compliance audit logging | `what/audit-logging.md` | agentic-operator, agentic-sandbox, service, operator, agentic-console |
 | Temporary audit log storage | `what/templog.md` | lightspeed-otel-collector, operator, agentic-operator, agentic-sandbox |
+| Agentic product data collection | [PLANNED: OLS-3569] `what/agentic-data-collection.md` | operator, agentic-operator, agentic-sandbox, otel-collector, Dataverse data product |
 | Multicluster operations | `what/multicluster-ops.md` | hub, hub-ui, agentic-operator, alerts-adapter |
 | Alerts-adapter multicluster support | `what/alerts-adapter-multicluster.md` | alerts-adapter, hub, operator |
 | Multicluster testing | `what/multicluster-testing.md` | hub, agentic-operator, alerts-adapter, hub-ui |

@@ -35,6 +35,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Understand how MCP tool-call RBAC is derived | `what/mcp-tool-rbac.md` |
 | Understand the compliance audit logging system | `what/audit-logging.md` |
 | Understand the temporary audit log pipeline | `what/templog.md` |
+| Understand Agentic product data collection | `what/agentic-data-collection.md` |
 | Understand multicluster operations | `what/multicluster-ops.md` |
 | Understand alerts-adapter multicluster support | `what/alerts-adapter-multicluster.md` |
 | Understand how multicluster is tested | `what/multicluster-testing.md` |

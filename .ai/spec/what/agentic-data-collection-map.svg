@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title desc">
+  <title id="title">Agentic OLS product data ownership map</title>
+  <desc id="desc">Agentic operators and batch sandboxes emit correlated OTLP traces. The Collector mechanically classifies raw Actions and Transcript candidates and publishes immutable ready files to a separate Agentic exporter. Dataverse owns logical models. Classic collection and templog remain separate.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f4f1ea}.panel{fill:#fff;stroke:#1f2933;stroke-width:2}.trace{fill:#e7f5f2;stroke:#087f6b;stroke-width:2}.action{fill:#eaf0ff;stroke:#3559b7;stroke-width:2}.transcript{fill:#fff0df;stroke:#b35c00;stroke-width:2}.log{fill:#f1edf7;stroke:#7451a6;stroke-width:2}.classic{fill:#eef2f4;stroke:#6b7780;stroke-width:2}.dark{fill:#17212b}.title{font-family:"DejaVu Sans",sans-serif;font-size:30px;font-weight:700;fill:#17212b}.h2{font-family:"DejaVu Sans",sans-serif;font-size:20px;font-weight:700;fill:#17212b}.h3{font-family:"DejaVu Sans",sans-serif;font-size:16px;font-weight:700;fill:#17212b}.body{font-family:"DejaVu Sans",sans-serif;font-size:14px;fill:#35424d}.small{font-family:"DejaVu Sans Mono",monospace;font-size:12px;fill:#35424d}.white{fill:#fff}.arrow{stroke:#17212b;stroke-width:3;fill:none;marker-end:url(#head)}.dash{stroke:#7451a6;stroke-width:3;fill:none;stroke-dasharray:8 7;marker-end:url(#headPurple)}
+    </style>
+    <marker id="head" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#17212b"/></marker>
+    <marker id="headPurple" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7451a6"/></marker>
+  </defs>
+
+  <rect class="bg" width="1400" height="760"/>
+  <text class="title" x="55" y="54">Agentic OLS data collection: canonical ownership</text>
+  <text class="body" x="55" y="82">OCP ≥ 5.0 · existing transcript opt-out + telemetry credentials · trace-only · full fidelity</text>
+
+  <rect class="trace" x="55" y="125" width="270" height="255" rx="14"/>
+  <text class="h2" x="78" y="162">Agentic producers</text>
+  <text class="h3" x="78" y="200">Operator</text>
+  <text class="body" x="78" y="224">Lifecycle, approval, Result CR,</text>
+  <text class="body" x="78" y="245">and terminal trace atoms</text>
+  <text class="h3" x="78" y="282">Batch sandbox</text>
+  <text class="body" x="78" y="306">Ordered input, completion, reasoning,</text>
+  <text class="body" x="78" y="327">tool, skill, and output events</text>
+  <text class="small" x="78" y="350">span attrs: agenticrun.uid</text>
+  <text class="small" x="78" y="368">and agenticrun.phase</text>
+
+  <path class="arrow" d="M325 250 H405"/>
+  <text class="small" x="339" y="232">OTLP traces</text>
+
+  <rect class="panel" x="415" y="125" width="315" height="255" rx="14"/>
+  <rect class="dark" x="415" y="125" width="315" height="52" rx="14"/>
+  <rect class="dark" x="415" y="160" width="315" height="17"/>
+  <text class="h3 white" x="438" y="157">Collector: mechanical boundary</text>
+  <text class="body" x="438" y="208">Filter eligible trace atoms</text>
+  <text class="body" x="438" y="234">Classify named content events</text>
+  <text class="body" x="438" y="260">Project the raw candidate envelope</text>
+  <rect class="action" x="438" y="286" width="125" height="58" rx="9"/>
+  <text class="h3" x="463" y="320">Actions</text>
+  <rect class="transcript" x="579" y="286" width="128" height="58" rx="9"/>
+  <text class="h3" x="596" y="320">Transcripts</text>
+  <text class="small" x="438" y="365">No joins, outcomes, aggregation, or SQL</text>
+
+  <path class="arrow" d="M730 250 H805"/>
+  <text class="small" x="746" y="232">ready files</text>
+
+  <rect class="panel" x="815" y="125" width="255" height="255" rx="14"/>
+  <text class="h2" x="838" y="162">Dedicated topology</text>
+  <text class="h3" x="838" y="205">Pod-local emptyDir</text>
+  <text class="body" x="838" y="228">Collector is sole writer</text>
+  <text class="body" x="838" y="249">Complete immutable JSONL</text>
+  <text class="h3" x="838" y="290">Separate Agentic exporter</text>
+  <text class="body" x="838" y="313">Uploads unchanged</text>
+  <text class="body" x="838" y="334">Deletes only confirmed success</text>
+  <text class="small" x="838" y="352">Retry buffer only;</text>
+  <text class="small" x="838" y="370">not durable storage</text>
+
+  <path class="arrow" d="M1070 250 H1140"/>
+
+  <rect class="panel" x="1150" y="125" width="195" height="255" rx="14"/>
+  <text class="h2" x="1173" y="162">Dataverse owns</text>
+  <text class="body" x="1173" y="205">Deduplication</text>
+  <text class="body" x="1173" y="232">Run/phase reconstruction</text>
+  <text class="body" x="1173" y="259">Ordered transcripts</text>
+  <text class="body" x="1173" y="286">Outcome derivation</text>
+  <text class="body" x="1173" y="313">Aggregations</text>
+  <text class="body" x="1173" y="340">Logical SQL/dbt models</text>
+
+  <rect class="classic" x="55" y="430" width="1290" height="82" rx="12"/>
+  <text class="h3" x="78" y="463">Classic collection remains unchanged</text>
+  <text class="body" x="78" y="490">Classic service transcript/feedback files → existing app-server exporter instance and volume → existing upload path</text>
+
+  <rect class="log" x="55" y="535" width="1290" height="82" rx="12"/>
+  <text class="h3" x="78" y="568">Separate logs path</text>
+  <text class="body" x="78" y="595">Agentic OTLP logs</text>
+  <path class="dash" d="M225 589 H355"/>
+  <text class="body" x="375" y="595">templog / PostgreSQL only — never Agentic Dataverse collection</text>
+
+  <rect class="panel" x="55" y="640" width="1290" height="72" rx="12"/>
+  <text class="h3" x="78" y="672">Failure boundary</text>
+  <text class="body" x="78" y="697">Product rejection or spool-full affects only product candidates; unrelated Collector pipelines continue. Pod replacement may lose unsent files.</text>
+</svg>
