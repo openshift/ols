@@ -7,7 +7,7 @@ Each child repo has its own `.ai/spec/` (or `AGENTS.md`) with repo-specific beha
 ## Structure
 
 | Layer | Path | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | **what/** | `.ai/spec/what/` | Product-level behavioral rules. Cross-repo feature flows, integration contracts, repo ownership. |
 | **how/** | `.ai/spec/how/` | Routing index. Concern → repo → spec file lookup table. |
 | **decisions/** | `.ai/spec/decisions/` | Architectural Decision Records. Significant choices with context, alternatives, and consequences. |
@@ -23,7 +23,7 @@ AI agents. Content is optimized for precision and machine consumption.
 ## Quick Start
 
 | Task | Start here |
-|---|---|
+| --- | --- |
 | Understand the full product | `what/system-overview.md` |
 | Find which repo owns a concern | `how/repo-map.md` |
 | Understand the agentic run flow | `what/agentic-runs.md` |

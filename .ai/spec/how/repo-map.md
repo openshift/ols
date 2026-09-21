@@ -5,7 +5,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Classic OLS — Service
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | Query processing & prompt composition | lightspeed-service | `what/query-processing.md`, `how/query-pipeline.md` |
 | LLM provider support (OpenAI, Azure, WatsonX, RHEL AI) | lightspeed-service | `what/llm-providers.md`, `how/llm-providers.md` |
 | MCP tool integration & tool calling loop | lightspeed-service | `what/tools.md`, `how/tools.md` |
@@ -27,7 +27,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Classic OLS — Operator
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | OLSConfig CRD & API | lightspeed-operator | `what/crd-api.md` |
 | Reconciliation loop | lightspeed-operator | `what/reconciliation.md`, `how/reconciliation.md` |
 | App server deployment | lightspeed-operator | `what/app-server.md` |
@@ -49,7 +49,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Classic OLS — Console
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | Chat UI & streaming | lightspeed-console | `AGENTS.md` (no `.ai/spec/` yet) |
 | Context attachment (YAML, logs) | lightspeed-console | `AGENTS.md` |
 | Conversation history UI | lightspeed-console | `AGENTS.md` |
@@ -58,7 +58,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Classic OLS — RAG Content
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | Content sources (BYOK customer Markdown) | lightspeed-rag-content | `what/content-sources.md` |
 | Embedding pipeline (chunking, vectorization — BYOK only) | lightspeed-rag-content | `what/embedding-pipeline.md`, `how/plaintext-pipeline.md`, `how/html-pipeline.md` |
 | BYOK (customer custom content) | lightspeed-rag-content | `what/byok.md` |
@@ -68,7 +68,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Agentic OLS — Operator
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | AgenticRun lifecycle (analysis → execution → verification) | lightspeed-agentic-operator | `what/run-lifecycle.md` |
 | Per-run cancellation and global sandbox hard-stop | lightspeed-agentic-operator | [PLANNED: OLS-3298, OLS-4018] `what/crd-api.md`, `what/run-lifecycle.md`, `what/system-config.md`, `what/sandbox-execution.md`, `how/reconciler.md` |
 | Approval gates & policies | lightspeed-agentic-operator | `what/approval.md` |
@@ -83,7 +83,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Agentic OLS — Console
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | AgenticRun list/detail UI | lightspeed-agentic-console | `what/run-lifecycle.md` |
 | Per-run Stop control and cancellation presentation | lightspeed-agentic-console | [PLANNED: OLS-3298] `what/run-lifecycle.md`, `how/k8s-data-layer.md` |
 | Dynamic configuration components | lightspeed-agentic-console | `what/dynamic-components.md` [PLANNED -- file does not yet exist] |
@@ -94,7 +94,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Agentic OLS — Sandbox
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | Batch agent input/result contract (ConfigMap/Pod/Result CR) | lightspeed-agentic-sandbox | `what/run-api.md` |
 | LLM provider contract (Claude, Gemini, OpenAI) | lightspeed-agentic-sandbox | `what/provider-contract.md` |
 | Configuration (env vars, provider selection) | lightspeed-agentic-sandbox | `what/configuration.md` |
@@ -108,7 +108,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Agentic OLS — Alerts Adapter
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | Alert polling & deduplication | lightspeed-agentic-alerts-adapter | `AGENTS.md` (no `.ai/spec/` yet) |
 | AgenticRun CR creation | lightspeed-agentic-alerts-adapter | `AGENTS.md` |
 | Cooldown logic | lightspeed-agentic-alerts-adapter | `AGENTS.md` |
@@ -116,7 +116,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Multicluster OLS — Hub
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | Hub operator system overview | lightspeed-hub | `what/system-overview.md` |
 | SpokeCluster CR lifecycle (registration → decommission) | lightspeed-hub | `what/spoke-lifecycle.md` |
 | Credential broker (secret, MCE) | lightspeed-hub | `what/spoke-lifecycle.md` |
@@ -129,7 +129,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Multicluster OLS — Hub UI
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | Hub UI system overview | lightspeed-hub-ui | `what/system-overview.md` |
 | Fleet dashboard (spoke health, AgenticRuns, alerts) | lightspeed-hub-ui | `what/fleet-dashboard.md` |
 | Spoke management (registration, detail, decommission) | lightspeed-hub-ui | `what/spoke-management.md` |
@@ -138,7 +138,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Multicluster OLS — OTel Collector
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | OTel collector system overview | lightspeed-otel-collector | `what/system-overview.md` |
 | Telemetry pipeline (receivers, processors, exporters) | lightspeed-otel-collector | `what/pipeline.md` |
 | Spoke-to-hub telemetry forwarding | lightspeed-otel-collector | `what/pipeline.md` |
@@ -148,7 +148,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Agentic OLS — Event Adapter (Prototype)
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | Multi-domain event polling & AgenticRun creation (Jira New triage, GitHub PR review) | lightspeed-team-harness | `what/event-adapter.md` |
 | Domain config contract (`source`, workflow mode, CI gate, concurrency) | lightspeed-team-harness | `what/event-adapter.md` |
 | Triage / PR-review skill packaging (OCI) | lightspeed-team-harness | `what/event-adapter.md` |
@@ -156,7 +156,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 ## Tooling
 
 | Concern | Repo | Spec Files |
-|---|---|---|
+| --- | --- | --- |
 | Shared AI coding skills | lightspeed-team-harness | `AGENTS.md` |
 | Load testing & metrics | ols-load-generator | `README.md` (no `.ai/spec/` yet) |
 
@@ -165,7 +165,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 These features span multiple repos. See the parent `what/` files for end-to-end behavior:
 
 | Feature | Parent Spec | Repos |
-|---|---|---|
+| --- | --- | --- |
 | Agentic run lifecycle | `what/agentic-runs.md` | alerts-adapter, team-harness event-adapter [PROTOTYPE], agentic-operator, agentic-sandbox, agentic-console |
 | Agentic run termination (per-run cancellation, global hard-stop) | `what/agentic-run-termination.md` | agentic-operator, agentic-console |
 | Agentic security (approval auth, SA isolation) | `what/agentic-security.md` | agentic-operator, agentic-console |
@@ -175,6 +175,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |
 | Tool-result prompt-injection inspection | `what/tool-result-inspection.md` | service, operator, agentic-operator, agentic-sandbox |
 | Compliance audit logging | `what/audit-logging.md` | agentic-operator, agentic-sandbox, service, operator, agentic-console |
+| Provider-egress TLS and CA handoff | `docs/superpowers/specs/2026-09-20-provider-egress-tls.md` | operator (`what/tls.md`), agentic-operator (`what/sandbox-execution.md`, `docs/inter-operator-handoff-design.md`), agentic-sandbox (`what/configuration.md`) |
 | Temporary audit log storage | `what/templog.md` | lightspeed-otel-collector, operator, agentic-operator, agentic-sandbox |
 | Agentic product data collection | [PLANNED: OLS-3569] `what/agentic-data-collection.md` | operator, agentic-operator, agentic-sandbox, otel-collector, Dataverse data product |
 | Multicluster operations | `what/multicluster-ops.md` | hub, hub-ui, agentic-operator, alerts-adapter |
