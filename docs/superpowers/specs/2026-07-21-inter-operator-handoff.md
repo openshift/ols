@@ -2,14 +2,58 @@
 
 **Feature Request:** [OLS-3572](https://redhat.atlassian.net/browse/OLS-3572)
 **Date:** 2026-07-21
-**Status:** Draft
+**Status:** Draft; extended by OLS-3038 / OLS-3041 / OLS-3042
 **Related:** [OLS-3526](https://redhat.atlassian.net/browse/OLS-3526) (standalone HTTPS ocp-mcp), [OLS-3594](https://redhat.atlassian.net/browse/OLS-3594) (ocp-mcp auto-injection), [OLS-3443](https://redhat.atlassian.net/browse/OLS-3443) (MCP server connectivity), [OLS-3697](https://redhat.atlassian.net/browse/OLS-3697) (standalone HTTPS RHOKP)
+
+> The OLS-3038 provider-egress TLS and CA design in
+> `docs/superpowers/specs/2026-09-20-provider-egress-tls.md` adds additional
+> TLS and CA parameters, plus the corresponding runtime requirements. It does
+> not replace or redefine the existing handoff behavior described below.
 
 ## Problem
 
 The lightspeed-operator manages cluster infrastructure — container images, MCP server deployment, TLS certificates, OTEL collector — that agentic sandbox pods need to consume. The lightspeed-agentic-operator creates those sandbox pods but has no mechanism to learn about this managed infrastructure. The two operators share the same OLM bundle and namespace but have no runtime interaction (system-overview rule 5). They reconcile different API groups (`ols.openshift.io` vs `agentic.openshift.io`).
 
 Additionally, the agentic operator currently has two separate code paths for pod spec construction: `PodSpecBuilder` (typed `corev1.PodSpec` for bare-pod mode) and `EnsureAgentTemplate` (unstructured map patches for sandbox-claim mode). Every new config injection must be implemented twice, making the handoff problem harder than it needs to be.
+
+## OLS-3038 TLS and CA extension
+
+The provider-egress TLS and CA extension adds to the existing
+`lightspeed-agentic-configuration` handoff. The classic operator remains the
+source of truth: it validates `spec.ols.additionalCAConfigMapRef`, resolves
+`spec.ols.tlsSecurityProfile`, and publishes non-secret values and object
+names only.
+
+The handoff keys are:
+
+| Key | Meaning |
+| --- | --- |
+| `tls-profile` | Resolved OpenShift profile type: `Intermediate`, `Modern`, `Old`, or `Custom`. |
+| `tls-min-version` | Resolved minimum version: `VersionTLS12` or `VersionTLS13`. |
+| `tls-cipher-suites` | JSON array of resolved cipher-suite names. |
+| `additional-ca-configmap` | ConfigMap name from `spec.ols.additionalCAConfigMapRef`, when configured. |
+| `otel-ca-secret` | Existing operator-managed OTEL CA Secret name. |
+| `mcp-ca-secret` | Existing operator-managed MCP CA Secret name. |
+| `rhokp-ca-secret` | Existing operator-managed RHOKP CA Secret name. |
+
+The classic operator already watches and validates the configured additional
+CA ConfigMap as part of its existing classic OLS configuration handling. The
+agentic operator mounts the referenced CA sources read-only under
+`/var/run/secrets/lightspeed/tls/` and watches only the handoff ConfigMap. It
+assumes that the referenced source content is correct; it does not inspect
+certificate contents, aggregate certificates, deduplicate references, or watch
+referenced Secrets and ConfigMaps.
+
+The sandbox scans mounted `.crt` and `.pem` files generically, combines them
+with the system trust store into one runtime bundle, and configures Python and
+provider TLS code to use that bundle. Sandbox code MUST NOT contain individual
+CA Secret names or source-specific CA paths. Provider credentials, client
+certificates/keys, and MCP authentication Secrets remain separate when
+required by their protocols.
+
+OLS-3857 and per-MCP-server CA configuration or trust selection are out of
+scope. See `docs/superpowers/specs/2026-09-20-provider-egress-tls.md` for the
+complete TLS/CA extension contract.
 
 ## Approach: ConfigMap-Based Handoff with Base PodSpec
 
@@ -38,7 +82,7 @@ The lightspeed-operator creates and maintains a ConfigMap during reconciliation:
 **Owner:** lightspeed-operator (owner reference to OLSConfig CR)
 
 | Key | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `sandbox-pod-spec` | JSON | Serialized `corev1.PodSpec` — sandbox container image, infrastructure env vars (`OTEL_EXPORTER_OTLP_ENDPOINT`), CA cert volumes + volume mounts, resource defaults. Everything the sandbox pod needs from infrastructure is baked in. |
 | `sandbox-mode` | string | `bare-pod` or `sandbox-claim` — from `OLSConfig.spec.agenticOLS.sandboxMode` |
 | `mcp-endpoint` | string | MCP server endpoint URL. Present when ocp-mcp is deployed as a standalone HTTPS service. Used by the agentic operator to construct `LIGHTSPEED_MCP_SERVERS` entries when merging with per-run MCP servers. |
@@ -52,7 +96,7 @@ The ConfigMap is **always created** by the lightspeed-operator. Keys are absent 
 The lightspeed-operator builds the base `corev1.PodSpec` containing:
 
 | Component | Source | In PodSpec as |
-|---|---|---|
+| --- | --- | --- |
 | Sandbox container image | `--agentic-sandbox-image` flag / related-images.json | Container image field |
 | OTEL endpoint | Templog OTel collector service | `OTEL_EXPORTER_OTLP_ENDPOINT` env var |
 | MCP CA certificate | Service-CA cert for ocp-mcp service | Volume + VolumeMount (CA bundle mounted directly) |
@@ -75,6 +119,7 @@ The agentic operator reads the ConfigMap and uses it as the foundation for all s
 #### Fail-Hard on Missing ConfigMap
 
 If the ConfigMap is not found:
+
 - Retry with backoff (bounded retries, e.g. 24 retries with 5s backoff — same pattern as Solr startup retries).
 - If still not found after timeout, **fail the run** with a clear error: `"lightspeed-sandbox-config ConfigMap not found — lightspeed-operator must be installed and reconciled"`.
 - **No fallback** to self-built pod specs. The classic operator is a hard prerequisite. No backward compatibility with the old self-contained pod spec building.
@@ -84,7 +129,7 @@ If the ConfigMap is not found:
 For each `AgenticRun`, the agentic operator overlays per-run config onto the base PodSpec:
 
 | Config | Source | Applied as |
-|---|---|---|
+| --- | --- | --- |
 | LLM env vars | `Agent` + `LLMProvider` CRs | Env vars per sandbox-execution rule 16a |
 | LLM credentials | `LLMProvider.spec.*.credentialsSecret` | `envFrom` + volume mount at `/var/run/secrets/llm-credentials/` |
 | Per-run MCP servers | `ToolsSpec.mcpServers` | Merged into `LIGHTSPEED_MCP_SERVERS` env var (alongside any base MCP servers from ConfigMap) |
@@ -180,12 +225,14 @@ When OTEL is not configured (collector not deployed), the env var is absent from
 ## Testing Strategy
 
 ### lightspeed-operator
+
 - **Unit:** OLSConfig with `spec.agenticOLS.sandboxMode` → verify ConfigMap created with correct `sandbox-mode` key
 - **Unit:** OTEL collector deployed → verify `OTEL_EXPORTER_OTLP_ENDPOINT` present in base PodSpec
 - **Unit:** ocp-mcp deployed → verify CA cert volume/mount in base PodSpec and `mcp-endpoint` key present
 - **Unit:** Cert rotation → verify ConfigMap updated with new PodSpec
 
 ### lightspeed-agentic-operator
+
 - **Unit:** ConfigMap present → verify base PodSpec deserialized and per-run overlay applied correctly
 - **Unit:** ConfigMap missing → verify fail-hard after timeout with clear error
 - **Unit:** Bare-pod mode → Pod created from overlayed PodSpec
@@ -196,7 +243,7 @@ When OTEL is not configured (collector not deployed), the env var is absent from
 ## Changes by Repository
 
 | Repo | Changes |
-|---|---|
+| --- | --- |
 | **lightspeed-operator** | Add `spec.agenticOLS` to OLSConfig CRD. New reconciler logic to build base PodSpec and maintain `lightspeed-sandbox-config` ConfigMap. |
 | **lightspeed-agentic-operator** | Refactor `PodSpecBuilder` to read base from ConfigMap and overlay per-run config. Simplify `EnsureAgentTemplate` to build SandboxTemplate from PodSpec. Add ConfigMap watch. Deprecate `--sandbox-mode` flag. Fail-hard on missing ConfigMap. |
 | **lightspeed-agentic-sandbox** | No changes — already consumes env vars and mounts. |
@@ -206,11 +253,13 @@ When OTEL is not configured (collector not deployed), the env var is absent from
 **Risk Level: 3 (High)**
 
 Per risk-level-rubric decision tree:
+
 1. Does the change touch an external contract? — Yes: new `spec.agenticOLS` field on OLSConfig CRD (API contract change → Risk 3).
 2. Does the change affect user-visible behavior? — Yes: sandbox mode moves from operator flag to CRD field (operational change). Fail-hard on missing ConfigMap changes failure behavior.
 3. Does the change alter internal logic? — Yes: significant refactor of pod spec construction in agentic operator, new ConfigMap reconciliation in classic operator.
 
 Mitigations:
+
 - New CRD field is additive and optional with backward-compatible default (`bare-pod`)
 - ConfigMap is operator-internal, not user-facing
 - Agentic operator fail-hard ensures misconfigurations are caught early
