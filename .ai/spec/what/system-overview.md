@@ -21,7 +21,7 @@ The entire agentic layer is installed only on OCP ≥ 5.0. On OCP 4.x, OLS runs 
 
 5. **lightspeed-agentic-operator** (Go/kubebuilder) — Orchestrates `AgenticRun` CRs through multi-phase workflows, manages sandbox pods, enforces approval policies, materializes RBAC for execution. Spec: `lightspeed-agentic-operator/.ai/spec/README.md`
 6. **lightspeed-agentic-console** (TypeScript/React) — Console plugin providing the AI Hub UI for viewing, approving, and monitoring agentic runs. Configuration for approval policies, LLM providers, and agent tiers. Spec: `lightspeed-agentic-console/.ai/spec/README.md`
-7. **lightspeed-agentic-sandbox** (Python/FastAPI) — Containerized agent runtime. Wraps multiple LLM provider SDKs (Claude, Gemini, OpenAI) behind a unified `/v1/agent/run` HTTP endpoint with structured output and tool execution. Spec: `lightspeed-agentic-sandbox/.ai/spec/README.md`
+7. **lightspeed-agentic-sandbox** (Python) — Ephemeral batch agent runtime. Consumes mounted ConfigMap input, runs the selected LLM provider SDK with tool execution and structured output, and publishes immutable Result CRs through the Kubernetes API. Spec: `lightspeed-agentic-sandbox/.ai/spec/README.md`
 8. **lightspeed-agentic-alerts-adapter** (Go) — Stateless bridge. Polls AlertManager for firing alerts, creates `AgenticRun` CRs with deduplication and cooldown logic. Guide: `lightspeed-agentic-alerts-adapter/AGENTS.md`
 
 ### Multicluster OLS
@@ -50,6 +50,7 @@ These features span multiple repos and have dedicated spec files describing the 
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |
 | Compliance audit logging | `what/audit-logging.md` | agentic-operator, agentic-sandbox, service, operator, agentic-console |
 | Temporary audit log storage | `what/templog.md` | otel-collector, operator, agentic-operator, agentic-sandbox |
+| Agentic product data collection | `what/agentic-data-collection.md` | operator, agentic-operator, agentic-sandbox, otel-collector, Dataverse data product |
 | Agentic security model | `what/agentic-security.md` | agentic-operator, agentic-console |
 | MCP tool RBAC resolution | `what/mcp-tool-rbac.md` | agentic-operator, agentic-sandbox, operator (ocp-mcp) |
 | Multicluster operations | `what/multicluster-ops.md` | hub, hub-ui, agentic-operator, alerts-adapter |
