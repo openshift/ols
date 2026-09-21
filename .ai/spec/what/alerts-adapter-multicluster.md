@@ -16,20 +16,20 @@ How the alerts-adapter supports polling AlertManager on multiple spoke clusters 
 
 A single alerts-adapter instance runs on the hub cluster. It watches `SpokeCluster` CRs to discover managed clusters, reads a per-spoke AlertManager kubeconfig Secret, and polls each spoke's AlertManager independently. AgenticRuns created on the hub carry `spec.targetCluster` and a spoke label for per-spoke dedup and fleet visibility.
 
-The adapter operates in one of two modes, controlled by config:
+The adapter operates in one of two modes, controlled by the `--multicluster` CLI flag:
 
 | Mode | Behavior |
 |---|---|
-| Single-cluster (`multicluster: false`, default) | Current behavior. Polls the local in-cluster AlertManager. No SpokeCluster watch. No `spec.targetCluster` or spoke label on AgenticRuns. |
-| Multi-cluster (`multicluster: true`) | Watches SpokeCluster CRs. Polls spoke AlertManagers via per-spoke kubeconfig Secrets. Sets `spec.targetCluster` and `hub.openshift.io/spoke-cluster` label on every AgenticRun. |
+| Single-cluster (default, flag absent) | Current behavior. Polls the local in-cluster AlertManager. No SpokeCluster watch. No `spec.targetCluster` or spoke label on AgenticRuns. |
+| Multi-cluster (`--multicluster`) | Watches SpokeCluster CRs. Polls spoke AlertManagers via per-spoke credential Secrets. Sets `spec.targetCluster` and `hub.openshift.io/spoke-cluster` label on every AgenticRun. |
 
 ## Behavioral Rules
 
 ### Configuration
 
-1. The adapter config (YAML from ConfigMap) gains a `multicluster` boolean field. Default: `false`.
-2. When `multicluster: false`, the adapter behaves exactly as today — single-cluster mode. No SpokeCluster watch, no spoke-scoped behavior.
-3. When `multicluster: true`, the adapter MUST NOT poll a local AlertManager. All AlertManager sources come from SpokeCluster CRs.
+1. The adapter accepts a `--multicluster` CLI flag (boolean, default `false`). The flag controls whether spoke target discovery is enabled at startup.
+2. Without `--multicluster`, the adapter behaves exactly as today — single-cluster mode. No SpokeCluster watch, no spoke-scoped behavior.
+3. With `--multicluster`, the adapter MUST NOT poll a local AlertManager. All AlertManager sources come from SpokeCluster CRs.
 4. Global config fields (`pollInterval`, `preRunDelay`, `postRunDelay`, `allowedReceivers`, `ignoredLabels`, `tools`, `agent`) apply uniformly to all spokes.
 
 ### SpokeCluster Watch (multi-cluster mode only)

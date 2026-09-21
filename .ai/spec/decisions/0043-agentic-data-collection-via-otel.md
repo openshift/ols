@@ -1,4 +1,4 @@
-# 0042 — Agentic Data Collection via OTLP Traces
+# 0043 — Agentic Data Collection via OTLP Traces
 
 ## Status
 
