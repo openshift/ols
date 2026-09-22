@@ -16,65 +16,65 @@ An external event source creates an `AgenticRun` CR to initiate a workflow. Any 
 
 **Example — event-adapter (team-harness prototype; Jira + GitHub domains):**
 
-4. The event adapter uses one image with a separate Deployment + ConfigMap per domain (`source: jira` or `source: github`). See `lightspeed-team-harness/.ai/spec/what/event-adapter.md`.
-5. The Jira domain polls for issues in New and creates batch triage AgenticRuns (analysis + human-approved execution).
-6. The GitHub PR-review domain polls allowlisted repos and creates one AgenticRun per `repo + pull + headSha` after CI is terminal (all checks except Tide).
+1. The event adapter uses one image with a separate Deployment + ConfigMap per domain (`source: jira` or `source: github`). See `lightspeed-team-harness/.ai/spec/what/event-adapter.md`.
+2. The Jira domain polls for issues in New and creates batch triage AgenticRuns (analysis + human-approved execution).
+3. The GitHub PR-review domain polls allowlisted repos and creates one AgenticRun per `repo + pull + headSha` after CI is terminal (all checks except Tide).
 
 **Analysis-only writeback:** Some domains (e.g. GitHub PR review) perform external side effects during analysis (such as posting a Pull Request Review with event `COMMENT`) and return `actionRequired=false`, so the run terminates in `NoActionRequired` without an execution phase. This intentionally bypasses the propose → approve → execute gate for that domain and must be documented on the adapter; it does not change the CRD.
 
 ### Phase 2: Analysis
 
-5. The agentic-operator detects the new AgenticRun CR and adds a finalizer.
-6. The operator checks the cluster-scoped `ApprovalPolicy` (singleton named "cluster") for the analysis approval gate.
-7. If approval is required, the operator waits for an `AgenticRunApproval` CR granting analysis. If automatic, it proceeds immediately.
-8. The operator creates an input ConfigMap with the analysis **query** (request input), **system instructions**, output schema, context, and a pre-filled Result CR template. It then provisions a sandbox pod (bare-pod or sandbox-claim mode) with the ConfigMap mounted at `/input/`. [OLS-3066] [PLANNED: OLS-3491] System instructions are resolved from the step's `Agent` CR (`Agent.spec.instructions.analysis` when non-empty, else product built-in) and passed on the system channel via the `system-prompt` ConfigMap key; `query` carries `spec.request` only (plus existing revision suffix). [PLANNED: OLS-4060] Tool definitions come only from `AgenticRun.spec.tools` and apply to every sandbox step, so the analysis sandbox receives the same MCP servers, skills, and required secrets as execution/verification/escalation. See agentic-operator `what/crd-api.md` and `what/sandbox-execution.md`.
-9. The sandbox pod runs the agent autonomously (batch execution — no HTTP). The agent executes using the configured LLM provider (Anthropic, Gemini, or OpenAI) and produces structured remediation options. Each option contains a concrete remediation script (ordered bash commands using kubectl/oc) and RBAC requirements derived from those commands. Analysis **instructions** require inspecting cluster state before diagnosing and deriving RBAC by tracing every command in the script. [OLS-3066]
+1. The agentic-operator detects the new AgenticRun CR and adds a finalizer.
+2. The operator checks the cluster-scoped `ApprovalPolicy` (singleton named "cluster") for the analysis approval gate.
+3. If approval is required, the operator waits for an `AgenticRunApproval` CR granting analysis. If automatic, it proceeds immediately.
+4. The operator creates an input ConfigMap with the analysis **query** (request input), **system instructions**, output schema, context, and a pre-filled Result CR template. It then provisions a sandbox pod (bare-pod or sandbox-claim mode) with the ConfigMap mounted at `/input/`. [OLS-3066] [PLANNED: OLS-3491] System instructions are resolved from the step's `Agent` CR (`Agent.spec.instructions.analysis` when non-empty, else product built-in) and passed on the system channel via the `system-prompt` ConfigMap key; `query` carries `spec.request` only (plus existing revision suffix). [PLANNED: OLS-4060] Tool definitions come only from `AgenticRun.spec.tools` and apply to every sandbox step, so the analysis sandbox receives the same MCP servers, skills, and required secrets as execution/verification/escalation. See agentic-operator `what/crd-api.md` and `what/sandbox-execution.md`.
+5. The sandbox pod runs the agent autonomously (batch execution — no HTTP). The agent executes using the configured LLM provider (Anthropic, Gemini, or OpenAI) and produces structured remediation options. Each option contains a concrete remediation script (ordered bash commands using kubectl/oc) and RBAC requirements derived from those commands. Analysis **instructions**, owned and rendered by the agentic operator, require inspecting cluster state before diagnosing and deriving RBAC by tracing every command in the script. For MCP remediation steps, those instructions also require using only sandbox-admitted tools, resolving `_meta["openshift.io/rbac"]` for admitted mutating Kubernetes tools, and never using oc-IR to bypass admission. [OLS-3066] [OLS-4059]
 9a. [PLANNED: OLS-3928] The DeepAgents path inspects each model-visible tool result or error. Gemini ADK and OpenAI Agents do not receive this inspection. See `tool-result-inspection.md`.
-10. The sandbox creates the `AnalysisResult` CR via `oc create` + `oc patch --subresource=status`, merging the agent output into the operator-provided template. The operator watches for this CR via `Owns()` and is automatically enqueued when it appears. [OLS-3066]
-11. The operator reads the `AnalysisResult` CR and updates the AgenticRun conditions accordingly.
-12. The analysis output includes an `actionRequired` boolean and a top-level `Diagnosis` (summary, rootCause). When `actionRequired` is false, the `Options` array may be empty (`minItems: 0`); the top-level `Diagnosis` captures the agent's explanation of why no remediation is needed.
-13. When the operator stores an `AnalysisResult` with `actionRequired=false`, it sets the `Analyzed` condition to `True` with reason `NoActionRequired`. The AgenticRun auto-transitions to the `NoActionRequired` terminal phase, bypassing Proposed/Approval/Execution/Verification entirely.
+6. The sandbox creates the `AnalysisResult` CR via `oc create` + `oc patch --subresource=status`, merging the agent output into the operator-provided template. The operator watches for this CR via `Owns()` and is automatically enqueued when it appears. [OLS-3066]
+7. The operator reads the `AnalysisResult` CR and updates the AgenticRun conditions accordingly.
+8. The analysis output includes an `actionRequired` boolean and a top-level `Diagnosis` (summary, rootCause). When `actionRequired` is false, the `Options` array may be empty (`minItems: 0`); the top-level `Diagnosis` captures the agent's explanation of why no remediation is needed.
+9. When the operator stores an `AnalysisResult` with `actionRequired=false`, it sets the `Analyzed` condition to `True` with reason `NoActionRequired`. The AgenticRun auto-transitions to the `NoActionRequired` terminal phase, bypassing Proposed/Approval/Execution/Verification entirely.
 
 ### Phase 3: Approval
 
-14. The agentic-console displays the AgenticRun in "Proposed" phase with the analysis results.
-15. A human reviewer selects a remediation option and creates an `AgenticRunApproval` CR for execution. **Only cluster-admin users may approve runs** — see `agentic-security.md` for authorization rules and enforcement.
-16. The reviewer can optionally provide revision feedback via `spec.revisionFeedback` on the AgenticRun. Revision feedback is also supported from the `NoActionRequired` terminal phase — patching `spec.revisionFeedback` resets conditions and re-runs analysis, same as the re-analysis pattern from other phases.
+ 1. The agentic-console displays the AgenticRun in "Proposed" phase with the analysis results.
+ 2. A human reviewer selects a remediation option and creates an `AgenticRunApproval` CR for execution. **Only cluster-admin users may approve runs** — see `agentic-security.md` for authorization rules and enforcement.
+ 3. The reviewer can optionally provide revision feedback via `spec.revisionFeedback` on the AgenticRun. Revision feedback is also supported from the `NoActionRequired` terminal phase — patching `spec.revisionFeedback` resets conditions and re-runs analysis, same as the re-analysis pattern from other phases.
 
 ### Phase 4: Execution
 
-17. The operator materializes RBAC (ServiceAccount, Role, RoleBinding) scoped to the approved option's requirements. The operator does not distinguish MCP-derived PolicyRules from oc-derived ones — MCP tool RBAC is resolved by the **analysis agent** (via `_meta` contract → oc-IR fallback → fail-closed, per `mcp-tool-rbac.md` OLS-3680) and reported in the standard `RemediationOption` format; the operator materializes whatever PolicyRules appear.
-18. The operator creates an input ConfigMap with the execution **query** (approved option JSON) and **system instructions**, then provisions a sandbox pod using the same run-level `spec.tools` used by analysis. [OLS-3066] [PLANNED: OLS-3491] Execution instructions (follow script exactly; dry-run mutations) are resolved from the execution step's Agent CR and passed on the system channel.
-19. The sandbox agent executes the remediation actions by running the approved bash commands in order.
-20. The sandbox creates the `ExecutionResult` CR via `oc`, and the operator processes it upon watch notification. [OLS-3066]
+ 1. The operator materializes RBAC (ServiceAccount, Role, RoleBinding) scoped to the approved option's requirements. The operator does not distinguish MCP-derived PolicyRules from oc-derived ones — MCP tools are admitted or filtered by the **sandbox** before LLM exposure, and the analysis agent resolves metadata for admitted mutating Kubernetes tools and reports standard `PolicyRule`s (per `mcp-tool-rbac.md`, OLS-4059); the operator materializes whatever PolicyRules appear.
+ 2. The operator creates an input ConfigMap with the execution **query** (approved option JSON) and **system instructions**, then provisions a sandbox pod using the same run-level `spec.tools` used by analysis. [OLS-3066] [PLANNED: OLS-3491] Execution instructions (follow script exactly; dry-run mutations) are resolved from the execution step's Agent CR and passed on the system channel.
+ 3. The sandbox agent executes the remediation actions by running the approved bash commands in order.
+ 4. The sandbox creates the `ExecutionResult` CR via `oc`, and the operator processes it upon watch notification. [OLS-3066]
 
 ### Phase 5: Verification
 
-21. If verification is configured, the operator checks the approval gate for verification.
-22. The operator calls the sandbox with a verification **query** (option + execution output), verification **system instructions** resolved from the verification step's Agent CR [PLANNED: OLS-3491], and the same run-level `spec.tools` used by analysis/execution. The verification instructions require retrying convergence-dependent checks (alerts, metrics, pod readiness) with appropriate wait intervals before reporting failure.
-23. On success, the operator stores the result in a `VerificationResult` CR and the AgenticRun moves to Completed.
-24. On failure, the operator stores the result in a `VerificationResult` CR and moves to the Escalation phase.
+ 1. If verification is configured, the operator checks the approval gate for verification.
+ 2. The operator calls the sandbox with a verification **query** (option + execution output), verification **system instructions** resolved from the verification step's Agent CR [PLANNED: OLS-3491], and the same run-level `spec.tools` used by analysis/execution. The verification instructions require retrying convergence-dependent checks (alerts, metrics, pod readiness) with appropriate wait intervals before reporting failure.
+ 3. On success, the operator stores the result in a `VerificationResult` CR and the AgenticRun moves to Completed.
+ 4. On failure, the operator stores the result in a `VerificationResult` CR and moves to the Escalation phase.
 
 ### Phase 6: Escalation
 
-25. If verification fails, the operator checks the approval gate for escalation.
-26. The operator calls the sandbox with an escalation **query** payload, escalation **system instructions** resolved from the escalation step's Agent CR (`Agent.spec.instructions.escalation` when non-empty, else built-in), and the same run-level `spec.tools` used by earlier steps. [PLANNED: OLS-3491] [PLANNED: OLS-4060]
-27. The result is stored in an `EscalationResult` CR and the AgenticRun moves to Escalated.
+ 1. If verification fails, the operator checks the approval gate for escalation.
+ 2. The operator calls the sandbox with an escalation **query** payload, escalation **system instructions** resolved from the escalation step's Agent CR (`Agent.spec.instructions.escalation` when non-empty, else built-in), and the same run-level `spec.tools` used by earlier steps. [PLANNED: OLS-3491] [PLANNED: OLS-4060]
+ 3. The result is stored in an `EscalationResult` CR and the AgenticRun moves to Escalated.
 
 ### Termination
 
-28. [PLANNED: OLS-3298, OLS-4018] A caller may permanently cancel any non-terminal run by setting `spec.cancelled=true`; the run derives as `Failed` with condition reason `CancelledByUser`. Cluster-wide suspension retains the distinct `EmergencyStopped` outcome and takes precedence when both signals are pending. Both paths hard-stop managed sandboxes and revoke their access under the retryable contract in `agentic-run-termination.md`.
+ 1. [PLANNED: OLS-3298, OLS-4018] A caller may permanently cancel any non-terminal run by setting `spec.cancelled=true`; the run derives as `Failed` with condition reason `CancelledByUser`. Cluster-wide suspension retains the distinct `EmergencyStopped` outcome and takes precedence when both signals are pending. Both paths hard-stop managed sandboxes and revoke their access under the retryable contract in `agentic-run-termination.md`.
 
 ### Cleanup
 
-29. On terminal phases (Completed, Failed, Denied, Escalated, EmergencyStopped, NoActionRequired) or AgenticRun deletion, the operator deletes materialized RBAC and releases sandbox pods/claims. [PLANNED: OLS-3298, OLS-4018] Stop-triggered cleanup continues after terminal status until workload and access removal are confirmed; sandbox references remain populated while cleanup is pending. See `agentic-run-termination.md`.
+ 1. On terminal phases (Completed, Failed, Denied, Escalated, EmergencyStopped, NoActionRequired) or AgenticRun deletion, the operator deletes materialized RBAC and releases sandbox pods/claims. [PLANNED: OLS-3298, OLS-4018] Stop-triggered cleanup continues after terminal status until workload and access removal are confirmed; sandbox references remain populated while cleanup is pending. See `agentic-run-termination.md`.
 
 ## Integration Contracts
 
 ### CRDs — `agentic.openshift.io/v1alpha1`
 
 | CRD | Scope | Owner | Purpose |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `AgenticRun` | Namespace | external adapters/clients (creates), authorized users (cancel), operator (reconciles) | Workflow state machine. Spec is immutable except revision feedback, terminal TTL, and one-way cancellation [PLANNED: OLS-3298]; status conditions determine phase. [PLANNED: OLS-4060] `spec.tools` is the only tool definition surface and applies to all steps. |
 | `AgenticRunApproval` | Namespace | console (creates) | Approval decisions per stage, option selection, max attempts override. Owned by AgenticRun. |
 | `ApprovalPolicy` | Cluster (singleton "cluster") | admin (creates) | Automatic/Manual gates per stage, max attempts, max concurrent runs. |
@@ -90,12 +90,13 @@ An external event source creates an `AgenticRun` CR to initiate a workflow. Any 
 The operator and sandbox communicate via Kubernetes objects, not HTTP:
 
 | Direction | Mechanism | Content |
-|---|---|---|
+| --- | --- | --- |
 | Operator → Sandbox (input) | ConfigMap volume mount at `/input/` | `query` (rendered prompt), `output-schema` (JSON schema), `context` (targetNamespaces, previousAttempts, approvedOption, executionResult), `result-template` (pre-filled Result CR) |
 | Sandbox → Operator (output) | Result CR created via `oc create` + `oc patch --subresource=status` | Same Result CR status fields as before (options, diagnosis, actionsTaken, checks, conditions, failureReason) |
 | Sandbox → Operator (errors) | `/dev/termination-log` (sandbox failures) or Result CR with `failureReason` (agent failures) | Error message string |
 
 Context envelope in the `context` ConfigMap key varies by phase:
+
 - Analysis: target namespaces
 - Execution: approved option (diagnosis, actions, RBAC), target namespaces
 - Verification: execution result, previous attempts, attempt metadata
@@ -122,7 +123,7 @@ Timeout fields and defaults are: analysis 600 seconds, execution 600 seconds, ve
 ## Repo Ownership
 
 | Repo | Owns |
-|---|---|
+| --- | --- |
 | **lightspeed-agentic-alerts-adapter** | Alert polling, fingerprint-based dedup, cooldown enforcement, AgenticRun CR creation (create-only) |
 | **lightspeed-agentic-operator** | AgenticRun reconciliation, approval gate enforcement, sandbox provisioning (ConfigMap input + pod creation), RBAC materialization, Result CR processing (reads CRs created by sandbox), phase derivation, finalizer cleanup [OLS-3066]; per-run cancellation and global hard-stop cleanup [PLANNED: OLS-3298, OLS-4018] |
 | **lightspeed-agentic-sandbox** | Batch agent execution (reads `/input/`, runs LLM, creates Result CR via `oc`), LLM provider abstraction (DeepAgents/Anthropic, Gemini, OpenAI adapters), structured output handling, tool execution, event logging [OLS-3066] |
@@ -131,7 +132,7 @@ Timeout fields and defaults are: analysis 600 seconds, execution 600 seconds, ve
 ## Planned Changes
 
 | Ticket | Summary |
-|---|---|
+| --- | --- |
 | OLS-3066 | Decouple reconcile latency: batch sandbox model, ConfigMap input, Result CR output via `oc`, watch-driven async, per-step timeout, ≤30s reconcile SLO. Subsumes OLS-2913 step-conditions. |
 | OLS-3743 | Wire Agent execution budgets and maximum turns into the batch sandbox; enforce layered agent and sandbox lifecycle deadlines. |
 | OLS-3298 | Add one-way per-run cancellation that yields `Failed / CancelledByUser` and hard-stops associated sandboxes. See `agentic-run-termination.md`. |
@@ -145,6 +146,6 @@ Timeout fields and defaults are: analysis 600 seconds, execution 600 seconds, ve
 | ~~OLS-3268~~ | ~~Analysis can signal `actionRequired=false` to auto-complete with `NoActionRequired` phase~~ [DONE: OLS-3268] |
 | ~~OLS-3295~~ | ~~Rename `Proposal` → `AgenticRun`, `ProposalApproval` → `AgenticRunApproval`, `ProposalResult` → `RemediationPlan` across CRDs, API, CLI, console, and docs~~ [DONE: OLS-3295] |
 | OLS-3441 | Script-grounded RBAC: analysis produces concrete bash scripts and derives RBAC from commands; execution dry-runs mutations before applying |
-| OLS-3680 | MCP tool RBAC resolution: analysis instructions teach the agent to derive execution RBAC for MCP tool-call steps via server-published `_meta` (operator-managed servers) → oc-IR fallback → fail-closed. Operator materialization pipeline unchanged. See `mcp-tool-rbac.md`. |
+| OLS-4059 | Sandbox admission for Kubernetes-authenticated MCP tools: read-only tools are allowed; non-read-only tools require valid `_meta["openshift.io/rbac"]`; non-compliant tools are filtered before LLM exposure. Operator materialization pipeline unchanged. See `mcp-tool-rbac.md`. |
 | OLS-4060 | Simplify tool configuration to run-level only: MCP servers, skills, and required secrets live only in `AgenticRun.spec.tools` and are available to every sandbox step, ensuring analysis can see the MCP servers used by remediation and validation. |
 | OLS-3657 | Event adapter: Jira-triggered AgenticRuns for automated bug triage (prototype in lightspeed-team-harness) |
