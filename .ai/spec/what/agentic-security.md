@@ -1,6 +1,6 @@
 # Agentic Security Model
 
-Security constraints for the agentic run system. Covers approval authorization, cancellation authorization, execution-time permission isolation, and access revocation during termination. Cross-references `agentic-runs.md` for the overall workflow and `agentic-run-termination.md` for stop behavior. For how the RBAC bound to the per-run execution SA is *derived* when a remediation step is an MCP tool call, see `mcp-tool-rbac.md` (OLS-3680).
+Security constraints for the agentic run system. Covers approval authorization, cancellation authorization, execution-time permission isolation, and access revocation during termination. Cross-references `agentic-runs.md` for the overall workflow and `agentic-run-termination.md` for stop behavior. For how MCP tools are admitted and how RBAC for admitted mutating Kubernetes tools is derived before binding it to the per-run execution SA, see `mcp-tool-rbac.md` (OLS-4059).
 
 ## Security Gaps Addressed
 
@@ -28,36 +28,36 @@ Two confirmed vulnerabilities in the current implementation motivate this spec:
 
 ### Per-Run ServiceAccount Isolation
 
-7. **Ephemeral execution SA.** For each run entering the execution phase, the operator MUST create a dedicated ServiceAccount named `ls-exec-{run-namespace}-{run-name}` (truncated to 63 chars) in the operator namespace. This SA MUST be used as the subject for all execution RBAC bindings (Roles, RoleBindings, ClusterRoles, ClusterRoleBindings) instead of the shared `lightspeed-agent` SA.
+1. **Ephemeral execution SA.** For each run entering the execution phase, the operator MUST create a dedicated ServiceAccount named `ls-exec-{run-namespace}-{run-name}` (truncated to 63 chars) in the operator namespace. This SA MUST be used as the subject for all execution RBAC bindings (Roles, RoleBindings, ClusterRoles, ClusterRoleBindings) instead of the shared `lightspeed-agent` SA.
 
-8. **SA name truncation.** The per-run SA name MUST be truncated to 63 characters using the existing `truncateK8sName` function to comply with Kubernetes naming constraints.
+2. **SA name truncation.** The per-run SA name MUST be truncated to 63 characters using the existing `truncateK8sName` function to comply with Kubernetes naming constraints.
 
-9. **Execution pod assignment.** The execution sandbox pod (bare-pod or sandbox-claim mode) MUST run as the per-run SA (`ls-exec-{run-namespace}-{run-name}`), not as `lightspeed-agent`. The operator passes this SA name to pod spec construction or template derivation.
+3. **Execution pod assignment.** The execution sandbox pod (bare-pod or sandbox-claim mode) MUST run as the per-run SA (`ls-exec-{run-namespace}-{run-name}`), not as `lightspeed-agent`. The operator passes this SA name to pod spec construction or template derivation.
 
-10. **Read-only SA scope.** Analysis and verification steps use the shared `lightspeed-agent` SA. Since execution RBAC is never bound to `lightspeed-agent` (rule 7), neither step can inherit execution-level permissions from concurrent runs. The `lightspeed-agent` SA SHOULD be bound to a cluster-reader ClusterRole so that analysis and verification can query cluster state without write access.
+4. **Read-only SA scope.** Analysis and verification steps use the shared `lightspeed-agent` SA. Since execution RBAC is never bound to `lightspeed-agent` (rule 7), neither step can inherit execution-level permissions from concurrent runs. The `lightspeed-agent` SA SHOULD be bound to a cluster-reader ClusterRole so that analysis and verification can query cluster state without write access.
 
-11. **SA lifecycle — creation.** The per-run SA MUST be created before execution RBAC materialization, in the same reconcile pass as `ensureExecutionRBAC`. If creation fails, the step MUST fail with an error surfaced to run conditions.
+5. **SA lifecycle — creation.** The per-run SA MUST be created before execution RBAC materialization, in the same reconcile pass as `ensureExecutionRBAC`. If creation fails, the step MUST fail with an error surfaced to run conditions.
 
-12. **SA lifecycle — owner reference.** The per-run SA MUST NOT carry an owner reference — cross-namespace owner references are not honored by the Kubernetes garbage collector. Cleanup is instead handled by the operator's run reconciler when the run reaches a terminal phase.
+6. **SA lifecycle — owner reference.** The per-run SA MUST NOT carry an owner reference — cross-namespace owner references are not honored by the Kubernetes garbage collector. Cleanup is instead handled by the operator's run reconciler when the run reaches a terminal phase.
 
-13. **SA lifecycle — cleanup.** On terminal phases (Completed, Failed, Denied, Escalated, EmergencyStopped, NoActionRequired) or AgenticRun deletion, the operator MUST delete the per-run SA alongside the existing RBAC cleanup. This is defense-in-depth — explicit cleanup ensures prompt removal of credentials.
+7. **SA lifecycle — cleanup.** On terminal phases (Completed, Failed, Denied, Escalated, EmergencyStopped, NoActionRequired) or AgenticRun deletion, the operator MUST delete the per-run SA alongside the existing RBAC cleanup. This is defense-in-depth — explicit cleanup ensures prompt removal of credentials.
 
-14. **Verification SA.** Verification steps use the shared `lightspeed-agent` SA (same as analysis), not the per-run execution SA. Verification is a read-only check — it confirms whether the execution's changes took effect but MUST NOT have write access. Escalation steps also use the shared `lightspeed-agent` SA since escalation generates a human-readable summary and does not modify cluster state.
+8. **Verification SA.** Verification steps use the shared `lightspeed-agent` SA (same as analysis), not the per-run execution SA. Verification is a read-only check — it confirms whether the execution's changes took effect but MUST NOT have write access. Escalation steps also use the shared `lightspeed-agent` SA since escalation generates a human-readable summary and does not modify cluster state.
 
-15. **Shared SA retention.** The `lightspeed-agent` SA MUST still be created at operator bootstrap (sandbox-execution.md rule 38) for analysis steps and as a fallback. It MUST NOT have any execution-level Roles or ClusterRoles bound to it.
+9. **Shared SA retention.** The `lightspeed-agent` SA MUST still be created at operator bootstrap (sandbox-execution.md rule 38) for analysis steps and as a fallback. It MUST NOT have any execution-level Roles or ClusterRoles bound to it.
 
 ### Run Cancellation and Termination [PLANNED: OLS-3298, OLS-4018]
 
-16. **Cancellation authorization.** Any caller with effective Kubernetes RBAC permission to `patch` namespaced `agenticruns` MAY set the one-way `spec.cancelled=true` field. The operator MUST NOT add a cancellation-specific ClusterRole or require membership in a named group. The API server's authorization of the patch is the enforcement boundary.
+ 1. **Cancellation authorization.** Any caller with effective Kubernetes RBAC permission to `patch` namespaced `agenticruns` MAY set the one-way `spec.cancelled=true` field. The operator MUST NOT add a cancellation-specific ClusterRole or require membership in a named group. The API server's authorization of the patch is the enforcement boundary.
 
-17. **Console access review.** The agentic console MUST check `patch` on `agenticruns` in the run namespace before showing or enabling `Stop run`. It MUST NOT inspect group membership or use `patch agenticrunapprovals` as a proxy. The actual patch remains independently authorized by the API server.
+ 2. **Console access review.** The agentic console MUST check `patch` on `agenticruns` in the run namespace before showing or enabling `Stop run`. It MUST NOT inspect group membership or use `patch agenticrunapprovals` as a proxy. The actual patch remains independently authorized by the API server.
 
-18. **Termination revocation.** Per-run cancellation and global suspension MUST revoke all sandbox access associated with the targeted workload, including sandbox ServiceAccount reader bindings and execution Roles/RoleBindings and ClusterRoles/ClusterRoleBindings. Revocation errors MUST remain retryable after terminal status; the system MUST NOT report global suspension fully activated while sandbox access remains. See `agentic-run-termination.md`.
+ 3. **Termination revocation.** Per-run cancellation and global suspension MUST revoke all sandbox access associated with the targeted workload, including sandbox ServiceAccount reader bindings and execution Roles/RoleBindings and ClusterRoles/ClusterRoleBindings. Revocation errors MUST remain retryable after terminal status; the system MUST NOT report global suspension fully activated while sandbox access remains. See `agentic-run-termination.md`.
 
 ## Repo Ownership
 
 | Repo | Owns |
-|---|---|
+| --- | --- |
 | **lightspeed-agentic-operator** | ClusterRole/ClusterRoleBinding for approver (RBAC manifests), per-run SA creation/cleanup, RBAC binding to per-run SA, `defaultSandboxSA` replacement logic; stop-time access revocation [PLANNED: OLS-3298, OLS-4018] |
 | **lightspeed-agentic-console** | `useAccessReview` gate on approve/deny buttons; separate `patch agenticruns` review for Stop [PLANNED: OLS-3298] |
 
@@ -66,7 +66,7 @@ Two confirmed vulnerabilities in the current implementation motivate this spec:
 The following child repo specs describe behavior that this spec supersedes or augments. Each MUST be updated to reflect the new rules:
 
 | Repo | Spec File | Update |
-|---|---|---|
+| --- | --- | --- |
 | lightspeed-agentic-operator | `what/sandbox-execution.md` rule 21 | RBAC bindings reference per-run SA, not shared SA. Update rule 22 to reference per-run SA. Add rule for SA creation/cleanup. |
 | lightspeed-agentic-operator | `what/sandbox-execution.md` rule 38 | Clarify that `lightspeed-agent` bootstrap SA is for analysis only; execution uses per-run SA. |
 | lightspeed-agentic-operator | `what/approval.md` | Add rule: `patch agenticrunapprovals` is restricted to cluster-admin via dedicated ClusterRole/ClusterRoleBinding. Reference this spec. |
@@ -85,7 +85,7 @@ The following child repo specs describe behavior that this spec supersedes or au
 ## Planned Changes
 
 | Ticket | Summary |
-|---|---|
+| --- | --- |
 | [DONE: OLS-3295] | Rename `Proposal` → `AgenticRun`, `ProposalApproval` → `AgenticRunApproval` across CRDs, RBAC resources, and SA naming |
 | [PLANNED: OLS-3298] | Authorize per-run cancellation through effective `patch agenticruns`; add a separate console access review and revoke sandbox access until confirmed complete. |
 | [PLANNED: OLS-4018] | Revoke access for every active managed sandbox during global suspension and keep suspension Draining while revocation is incomplete. |

@@ -19,30 +19,30 @@ Autonomous cluster operations. Alerts or user requests trigger multi-phase AI wo
 
 The entire agentic layer is installed only on OCP ≥ 5.0. On OCP 4.x, OLS runs classic-only with no agentic components, CRDs, or RBAC present. See constraint 10 in `constraints.md` and decision `decisions/0037-agentic-version-gating.md`.
 
-5. **lightspeed-agentic-operator** (Go/kubebuilder) — Orchestrates `AgenticRun` CRs through multi-phase workflows, manages sandbox pods, enforces approval policies, materializes RBAC for execution. Spec: `lightspeed-agentic-operator/.ai/spec/README.md`
-6. **lightspeed-agentic-console** (TypeScript/React) — Console plugin providing the AI Hub UI for viewing, approving, and monitoring agentic runs. Configuration for approval policies, LLM providers, and agent tiers. Spec: `lightspeed-agentic-console/.ai/spec/README.md`
-7. **lightspeed-agentic-sandbox** (Python) — Ephemeral batch agent runtime. Consumes mounted ConfigMap input, runs the selected LLM provider SDK with tool execution and structured output, and publishes immutable Result CRs through the Kubernetes API. Spec: `lightspeed-agentic-sandbox/.ai/spec/README.md`
-8. **lightspeed-agentic-alerts-adapter** (Go) — Stateless bridge. Polls AlertManager for firing alerts, creates `AgenticRun` CRs with deduplication and cooldown logic. Guide: `lightspeed-agentic-alerts-adapter/AGENTS.md`
+1. **lightspeed-agentic-operator** (Go/kubebuilder) — Orchestrates `AgenticRun` CRs through multi-phase workflows, manages sandbox pods, enforces approval policies, materializes RBAC for execution. Spec: `lightspeed-agentic-operator/.ai/spec/README.md`
+2. **lightspeed-agentic-console** (TypeScript/React) — Console plugin providing the AI Hub UI for viewing, approving, and monitoring agentic runs. Configuration for approval policies, LLM providers, and agent tiers. Spec: `lightspeed-agentic-console/.ai/spec/README.md`
+3. **lightspeed-agentic-sandbox** (Python) — Ephemeral batch agent runtime. Consumes mounted ConfigMap input, runs the selected LLM provider SDK with tool execution and structured output, and publishes immutable Result CRs through the Kubernetes API. Spec: `lightspeed-agentic-sandbox/.ai/spec/README.md`
+4. **lightspeed-agentic-alerts-adapter** (Go) — Stateless bridge. Polls AlertManager for firing alerts, creates `AgenticRun` CRs with deduplication and cooldown logic. Guide: `lightspeed-agentic-alerts-adapter/AGENTS.md`
 
 ### Multicluster OLS
 
 The hub layer for fleet-scale operations. A central hub cluster manages spoke clusters, aggregating alerts and proposals across the fleet, and providing a single pane of glass for multicluster AI-assisted operations.
 
-9. **lightspeed-hub** (Go/kubebuilder) — Hub operator. Manages `SpokeCluster` CRs, brokers credentials to spoke clusters (secret, MCE), orchestrates standalone adapters on the hub, and coordinates fleet-wide agentic operations. Spec: `lightspeed-hub/.ai/spec/README.md`
-10. **lightspeed-hub-ui** (TypeScript/React) — Console plugin for the hub. Single control plane for fleet-wide AgenticRun visibility, spoke management, and approval. Spec: `lightspeed-hub-ui/.ai/spec/README.md`
-11. **lightspeed-otel-collector** (Go) — Custom OpenTelemetry collector. Collects and forwards observability data (metrics, traces, logs) across the OLS fleet. Spec: `lightspeed-otel-collector/.ai/spec/README.md`
+1. **lightspeed-hub** (Go/kubebuilder) — Hub operator. Manages `SpokeCluster` CRs, brokers credentials to spoke clusters (secret, MCE), orchestrates standalone adapters on the hub, and coordinates fleet-wide agentic operations. Spec: `lightspeed-hub/.ai/spec/README.md`
+2. **lightspeed-hub-ui** (TypeScript/React) — Console plugin for the hub. Single control plane for fleet-wide AgenticRun visibility, spoke management, and approval. Spec: `lightspeed-hub-ui/.ai/spec/README.md`
+3. **lightspeed-otel-collector** (Go) — Custom OpenTelemetry collector. Collects and forwards observability data (metrics, traces, logs) across the OLS fleet. Spec: `lightspeed-otel-collector/.ai/spec/README.md`
 
 ### Tooling
 
-12. **lightspeed-team-harness** — Shared AI coding skills and conventions for the team (dependency updates, CI failure investigation, PR workflows, CVE resolution). Also hosts the event adapter prototype (polls Jira for new bugs, creates AgenticRun CRs for automated triage). Guide: `lightspeed-team-harness/AGENTS.md`; event adapter spec: `lightspeed-team-harness/.ai/spec/what/event-adapter.md`
-13. **ols-load-generator** (Go) — Load testing tool. Measures OLS performance under concurrent query load, scrapes cluster Prometheus metrics. Guide: `ols-load-generator/README.md`
+ 1. **lightspeed-team-harness** — Shared AI coding skills and conventions for the team (dependency updates, CI failure investigation, PR workflows, CVE resolution). Also hosts the event adapter prototype (polls Jira for new bugs, creates AgenticRun CRs for automated triage). Guide: `lightspeed-team-harness/AGENTS.md`; event adapter spec: `lightspeed-team-harness/.ai/spec/what/event-adapter.md`
+ 2. **ols-load-generator** (Go) — Load testing tool. Measures OLS performance under concurrent query load, scrapes cluster Prometheus metrics. Guide: `ols-load-generator/README.md`
 
 ## Cross-Repo Features
 
 These features span multiple repos and have dedicated spec files describing the end-to-end behavior:
 
 | Feature | Spec File | Repos Involved |
-|---|---|---|
+| --- | --- | --- |
 | Agentic run lifecycle | `what/agentic-runs.md` | alerts-adapter, agentic-operator, agentic-sandbox, agentic-console |
 | Agentic run termination | `what/agentic-run-termination.md` | agentic-operator, agentic-console |
 | RAG pipeline | `what/rag-pipeline.md` | rag-content, service, operator |
@@ -52,7 +52,7 @@ These features span multiple repos and have dedicated spec files describing the 
 | Temporary audit log storage | `what/templog.md` | otel-collector, operator, agentic-operator, agentic-sandbox |
 | Agentic product data collection | `what/agentic-data-collection.md` | operator, agentic-operator, agentic-sandbox, otel-collector, Dataverse data product |
 | Agentic security model | `what/agentic-security.md` | agentic-operator, agentic-console |
-| MCP tool RBAC resolution | `what/mcp-tool-rbac.md` | agentic-operator, agentic-sandbox, operator (ocp-mcp) |
+| MCP tool admission and RBAC metadata | `what/mcp-tool-rbac.md` | agentic-sandbox, agentic-operator |
 | Multicluster operations | `what/multicluster-ops.md` | hub, hub-ui, agentic-operator, alerts-adapter |
 | Alerts-adapter multicluster support | `what/alerts-adapter-multicluster.md` | alerts-adapter, hub, operator |
 | Multicluster testing | `what/multicluster-testing.md` | hub, agentic-operator, alerts-adapter, hub-ui |
@@ -60,7 +60,7 @@ These features span multiple repos and have dedicated spec files describing the 
 ## Planned Changes
 
 | Ticket | Summary |
-|---|---|
+| --- | --- |
 | OLS-2743 | Rebranding to "Red Hat OpenShift Intelligent Assistant" |
 | OLS-3473 | Remove Claude SDK and binaries from agentic-sandbox. Reroute Vertex/Anthropic and Bedrock paths to alternative agentic SDKs. |
 | OLS-3899 | Gate the agentic layer to OCP ≥ 5.0 via two version-split OLM bundles (v1 classic / v2 full) under one package. See decision 0037. |

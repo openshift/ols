@@ -169,7 +169,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Agentic run lifecycle | `what/agentic-runs.md` | alerts-adapter, team-harness event-adapter [PROTOTYPE], agentic-operator, agentic-sandbox, agentic-console |
 | Agentic run termination (per-run cancellation, global hard-stop) | `what/agentic-run-termination.md` | agentic-operator, agentic-console |
 | Agentic security (approval auth, SA isolation) | `what/agentic-security.md` | agentic-operator, agentic-console |
-| MCP tool RBAC resolution (`_meta` contract, oc-IR fallback) | `what/mcp-tool-rbac.md` | agentic-operator, agentic-sandbox, operator (ocp-mcp) |
+| MCP tool admission and RBAC metadata (`_meta` contract, pre-LLM filtering) | `what/mcp-tool-rbac.md` | agentic-sandbox, agentic-operator |
 | RAG pipeline (OKP + BYOK) | `what/rag-pipeline.md` | rag-content, service, operator |
 | Deployment lifecycle | `what/deployment-lifecycle.md` | operator, service, console, alerts-adapter [PLANNED: OLS-3236], agentic-console [PLANNED: OLS-3236] |
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |
