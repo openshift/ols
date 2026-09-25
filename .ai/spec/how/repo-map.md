@@ -29,6 +29,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Concern | Repo | Spec Files |
 | --- | --- | --- |
 | OLSConfig CRD & API | lightspeed-operator | `what/crd-api.md` |
+| Agentic run retention setting and handoff | lightspeed-operator | [PLANNED: OLS-4280] Parent `what/terminal-run-ttl.md`; child `what/crd-api.md`, `what/agentic-sandbox-profile.md` |
 | Reconciliation loop | lightspeed-operator | `what/reconciliation.md`, `how/reconciliation.md` |
 | App server deployment | lightspeed-operator | `what/app-server.md` |
 | Console plugin deployment | lightspeed-operator | `what/console-ui.md` |
@@ -70,6 +71,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Concern | Repo | Spec Files |
 | --- | --- | --- |
 | AgenticRun lifecycle (analysis → execution → verification) | lightspeed-agentic-operator | `what/run-lifecycle.md` |
+| Terminal-run TTL and fixed deletion deadline | lightspeed-agentic-operator | [PLANNED: OLS-4280] Parent `what/terminal-run-ttl.md`; child `what/crd-api.md`, `what/run-lifecycle.md` |
 | Per-run cancellation and global sandbox hard-stop | lightspeed-agentic-operator | [PLANNED: OLS-3298, OLS-4018] `what/crd-api.md`, `what/run-lifecycle.md`, `what/system-config.md`, `what/sandbox-execution.md`, `how/reconciler.md` |
 | Approval gates & policies | lightspeed-agentic-operator | `what/approval.md` |
 | Agentic CRD API (AgenticRun, Agent, LLMProvider) | lightspeed-agentic-operator | `what/crd-api.md` |
@@ -168,6 +170,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | --- | --- | --- |
 | Agentic run lifecycle | `what/agentic-runs.md` | alerts-adapter, team-harness event-adapter [PROTOTYPE], agentic-operator, agentic-sandbox, agentic-console |
 | Agentic run termination (per-run cancellation, global hard-stop) | `what/agentic-run-termination.md` | agentic-operator, agentic-console |
+| Terminal AgenticRun retention | [PLANNED: OLS-4280] `what/terminal-run-ttl.md` | operator, agentic-operator, agentic-console (deadline display) |
 | Agentic security (approval auth, SA isolation) | `what/agentic-security.md` | agentic-operator, agentic-console |
 | MCP tool admission and RBAC metadata (`_meta` contract, pre-LLM filtering) | `what/mcp-tool-rbac.md` | agentic-sandbox, agentic-operator |
 | RAG pipeline (OKP + BYOK) | `what/rag-pipeline.md` | rag-content, service, operator |

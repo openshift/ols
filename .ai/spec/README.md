@@ -27,6 +27,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Understand the full product | `what/system-overview.md` |
 | Find which repo owns a concern | `how/repo-map.md` |
 | Understand the agentic run flow | `what/agentic-runs.md` |
+| Understand terminal AgenticRun retention | `what/terminal-run-ttl.md` |
 | Understand per-run cancellation and global hard-stop behavior | `what/agentic-run-termination.md` |
 | Understand how RAG indexes are built and consumed | `what/rag-pipeline.md` |
 | Understand how the operator deploys everything | `what/deployment-lifecycle.md` |
