@@ -269,7 +269,7 @@ LIGHTSPEED_TOOL_OUTPUT_INSPECTION_ENABLED=true
 102. OLS MUST set the inspection span and parent operation span to error after inspection failure.
 103. OLS MUST log configuration state, malicious decisions, classifier failures, and inspection-based termination.
 104. OLS MUST NOT write successful per-chunk logs.
-105. Logs, spans, events, and CRs MUST NOT contain these values:
+105. Developer logs, inspection telemetry, inspection failure records, and CRs MUST NOT contain these values:
 
 - tool arguments
 - tool results or errors
@@ -278,6 +278,12 @@ LIGHTSPEED_TOOL_OUTPUT_INSPECTION_ENABLED=true
 - free-form classifier output
 - provider credentials
 
+105a. Inspection telemetry includes `tool_result.inspection` spans, their attributes, and feature-specific inspection events.
+105b. Rule 105 does not apply to existing approved audit and content-collection records.
+105c. These approved records can contain tool arguments under their existing content-capture and export contracts.
+105d. They can contain the complete tool result only after the complete result passes inspection.
+105e. An approved audit event and its compliance export are not developer logs or inspection telemetry.
+105f. A rejected result MUST NOT enter an audit or content-collection event.
 106. Recorded failure types MUST use controlled values such as `timeout`, `provider_error`, `invalid_response`, and `size_limit`.
 
 ## Test Requirements
@@ -293,10 +299,13 @@ LIGHTSPEED_TOOL_OUTPUT_INSPECTION_ENABLED=true
 114. Classic integration tests MUST cover the all-or-nothing concurrent-round rule.
 115. DeepAgents tests MUST make sure that rejected content never enters agent context or result objects.
 115a. DeepAgents tests MUST make sure that inspection occurs before normalized result-event emission.
-115b. DeepAgents tests MUST make sure that accepted logger events contain no tool-result payload.
+115b. DeepAgents tests MUST make sure that accepted `EventLogger` records and inspection telemetry contain no tool-result payload.
+115c. DeepAgents tests MUST make sure that the approved `AuditLogger` path receives the complete result only after inspection passes.
+115d. DeepAgents tests MUST make sure that rejected results do not enter audit or content-collection events.
 116. Operator tests MUST cover the default, Classic configuration, handoff key, and sandbox environment value.
 116a. Agentic tests MUST verify termination-message precedence, the fixed condition, complete-run failure, and Result CR suppression.
-117. Tests MUST make sure that inspected content does not enter logs or span attributes.
+117. Tests MUST make sure that inspected content does not enter developer logs, inspection events, or `tool_result.inspection` span attributes.
+117a. Classic tests MUST make sure that rejected results do not enter audit or content-collection events.
 118. A separate evaluation suite MUST run against real configured models.
 119. The evaluation corpus MUST include labeled attacks, benign OpenShift output, quoted attacks, and multilingual content.
 120. The evaluation suite MUST report false positives and false negatives by provider and model.
