@@ -68,6 +68,7 @@ An external event source creates an `AgenticRun` CR to initiate a workflow. Any 
 ### Cleanup
 
  1. On terminal phases (Completed, Failed, Denied, Escalated, EmergencyStopped, NoActionRequired) or AgenticRun deletion, the operator deletes materialized RBAC and releases sandbox pods/claims. [PLANNED: OLS-3298, OLS-4018] Stop-triggered cleanup continues after terminal status until workload and access removal are confirmed; sandbox references remain populated while cleanup is pending. See `agentic-run-termination.md`.
+ 2. [PLANNED: OLS-4280] Terminal runs are automatically deleted at the fixed `status.deleteAfter` timestamp, using the shorter of the per-run requested TTL in days and the admin ceiling in days (14-day agentic-operator fallback). Preserved failed runs remain a debugging exception. See `terminal-run-ttl.md` for cross-repo precedence and handoff.
 
 ## Integration Contracts
 
@@ -146,6 +147,7 @@ Timeout fields and defaults are: analysis 600 seconds, execution 600 seconds, ve
 | ~~OLS-3268~~ | ~~Analysis can signal `actionRequired=false` to auto-complete with `NoActionRequired` phase~~ [DONE: OLS-3268] |
 | ~~OLS-3295~~ | ~~Rename `Proposal` → `AgenticRun`, `ProposalApproval` → `AgenticRunApproval`, `ProposalResult` → `RemediationPlan` across CRDs, API, CLI, console, and docs~~ [DONE: OLS-3295] |
 | OLS-3441 | Script-grounded RBAC: analysis produces concrete bash scripts and derives RBAC from commands; execution dry-runs mutations before applying |
+| OLS-4280 | Bound terminal AgenticRun retention by `OLSConfig` through the handoff ConfigMap, with a 14-day agentic-operator fallback and a fixed user-visible deadline. See `terminal-run-ttl.md`. |
 | OLS-4059 | Sandbox admission for Kubernetes-authenticated MCP tools: read-only tools are allowed; non-read-only tools require valid `_meta["openshift.io/rbac"]`; non-compliant tools are filtered before LLM exposure. Operator materialization pipeline unchanged. See `mcp-tool-rbac.md`. |
 | OLS-4060 | Simplify tool configuration to run-level only: MCP servers, skills, and required secrets live only in `AgenticRun.spec.tools` and are available to every sandbox step, ensuring analysis can see the MCP servers used by remediation and validation. |
 | OLS-3657 | Event adapter: Jira-triggered AgenticRuns for automated bug triage (prototype in lightspeed-team-harness) |
