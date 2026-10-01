@@ -28,7 +28,7 @@ estimates and risk-assesses every item.
 | Cloud ID | `redhat.atlassian.net` |
 | Content format | `markdown` |
 | SP field | `customfield_10028` |
-| Risk Score field | `customfield_10976` |
+| Effort field (risk level) | `customfield_10637` |
 | Epic Size field | `customfield_10795` |
 | Max story points | 5 (split if above) |
 
@@ -237,7 +237,7 @@ searchJiraIssuesUsingJql:
     OR "Epic Link" = {PARENT_KEY}
   fields: ["summary", "description", "status",
            "issuetype", "customfield_10028",
-           "customfield_10976"]
+           "customfield_10637"]
   maxResults: 100
 ```
 
