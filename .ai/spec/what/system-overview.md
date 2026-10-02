@@ -48,6 +48,7 @@ These features span multiple repos and have dedicated spec files describing the 
 | RAG pipeline | `what/rag-pipeline.md` | rag-content, service, operator |
 | Deployment lifecycle | `what/deployment-lifecycle.md` | operator, service, console |
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |
+| A2A agent interoperability | [PLANNED] `what/a2a-interoperability.md` | service, operator; console uses existing tool UI |
 | Compliance audit logging | `what/audit-logging.md` | agentic-operator, agentic-sandbox, service, operator, agentic-console |
 | Temporary audit log storage | `what/templog.md` | otel-collector, operator, agentic-operator, agentic-sandbox |
 | Agentic product data collection | `what/agentic-data-collection.md` | operator, agentic-operator, agentic-sandbox, otel-collector, Dataverse data product |

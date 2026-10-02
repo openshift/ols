@@ -9,6 +9,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Query processing & prompt composition | lightspeed-service | `what/query-processing.md`, `how/query-pipeline.md` |
 | LLM provider support (OpenAI, Azure, WatsonX, RHEL AI) | lightspeed-service | `what/llm-providers.md`, `how/llm-providers.md` |
 | MCP tool integration & tool calling loop | lightspeed-service | `what/tools.md`, `how/tools.md` |
+| A2A agent delegation and inbound A2A endpoint | lightspeed-service | [PLANNED] Parent `what/a2a-interoperability.md`; child query/tool/auth specs |
 | Tool-result prompt-injection inspection | lightspeed-service | Parent `what/tool-result-inspection.md`; child `what/tools.md`, `how/tools.md` |
 | MCP apps (UI resources, tool proxy) | lightspeed-service | `what/mcp-apps.md` |
 | RAG retrieval at query time | lightspeed-service | `what/rag.md` |
@@ -29,6 +30,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Concern | Repo | Spec Files |
 | --- | --- | --- |
 | OLSConfig CRD & API | lightspeed-operator | `what/crd-api.md` |
+| A2A agent allowlist and service configuration | lightspeed-operator | [PLANNED] Parent `what/a2a-interoperability.md`; child `what/crd-api.md`, `what/app-server.md` |
 | Agentic run retention setting and handoff | lightspeed-operator | [PLANNED: OLS-4280] Parent `what/terminal-run-ttl.md`; child `what/crd-api.md`, `what/agentic-sandbox-profile.md` |
 | Reconciliation loop | lightspeed-operator | `what/reconciliation.md`, `how/reconciliation.md` |
 | App server deployment | lightspeed-operator | `what/app-server.md` |
@@ -179,6 +181,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Deployment lifecycle | `what/deployment-lifecycle.md` | operator, service, console, alerts-adapter [PLANNED: OLS-3236], agentic-console [PLANNED: OLS-3236] |
 | Operand network policies | [PLANNED: OLS-4171; OLS-3943] `what/operand-network-policies.md` | operator, hub (adapter exception), agentic-operator (sandbox exception), agentic-console (request path) |
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |
+| A2A agent interoperability | [PLANNED] `what/a2a-interoperability.md` | service, operator; console uses existing tool UI |
 | Tool-result prompt-injection inspection | `what/tool-result-inspection.md` | service, operator, agentic-operator, agentic-sandbox |
 | Compliance audit logging | `what/audit-logging.md` | agentic-operator, agentic-sandbox, service, operator, agentic-console |
 | Provider-egress TLS and CA handoff | `docs/superpowers/specs/2026-09-20-provider-egress-tls.md` | operator (`what/tls.md`), agentic-operator (`what/sandbox-execution.md`, `docs/inter-operator-handoff-design.md`), agentic-sandbox (`what/configuration.md`) |
