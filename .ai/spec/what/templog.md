@@ -183,14 +183,14 @@ The agentic-operator owns the `agentic.openshift.io/templog-cleanup` finalizer a
 
 ## Separation from Agentic Product Data Collection
 
-Templog is the only consumer of Agentic OTLP logs in the in-cluster Collector. Agentic product collection consumes traces only and has no PostgreSQL path. Its independent enablement, ready-file/export topology, and loss semantics are defined in `agentic-data-collection.md`.
+Templog is the only consumer of Agentic OTLP logs in the in-cluster Collector. Agentic product collection consumes traces only and has no PostgreSQL path. Its proposed first stage writes native OTLP trace-batch JSONL locally; no Dataverse consumer runs in that stage. A later `data_mode: otel` consumer and operator wiring are planned for rotated files. See the [canonical collection contract](agentic-data-collection.md) and the open [Collector #105](https://github.com/openshift/lightspeed-otel-collector/pull/105), [operator #2088](https://github.com/openshift/lightspeed-operator/pull/2088), and [exporter #147](https://github.com/lightspeed-core/lightspeed-to-dataverse-exporter/pull/147) proposals.
 
 ## Cross-References
 
 - `audit-logging.md` — Audit event catalog, correlation model, structured JSON format
 - `agentic-runs.md` — AgenticRun lifecycle, CRD definitions, phase transitions
 - Lightspeed-operator `postgres.md` — PostgreSQL deployment, bootstrap, credentials
-- `agentic-data-collection.md` — Trace-only Agentic product-data candidate streams and Dataverse handoff
+- [agentic-data-collection.md](agentic-data-collection.md) — Trace-only Agentic product collection using native FileExporter trace-batch JSONL, followed by a planned rotated-file Dataverse OTel consumer.
 
 ## Planned Changes
 
