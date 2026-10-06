@@ -53,6 +53,7 @@ End-to-end flow for processing a user question: from console submission through 
 ### Stage 7 — LLM Generation with Tool Calling (lightspeed-service)
 
 23. MCP tools are resolved from configured servers. The `search_openshift_documentation` tool is always registered when OKP/Solr hybrid is configured, providing LLM-driven retrieval of OCP product documentation. Tool filtering (hybrid RAG) is applied if enabled.
+23a. [PLANNED] Approved A2A agents are discovered from their Agent Cards and exposed as one tool per agent in the same tool loop. The model selects from agent-level descriptions without A2A-specific retrieval. See `a2a-interoperability.md`.
 24. If the model has `reasoning_config` set in its configuration, provider-specific reasoning/thinking parameters are applied to the LLM invocation. The config is a freeform map — each provider interprets the keys it understands (e.g., OpenAI: `effort`/`summary`; Gemini: `thinking_level`/`thinking_budget`; Anthropic: `type`/`display`; vLLM: `enabled`). When `reasoning_config` is absent, the provider uses standard non-reasoning defaults (temperature, top_p, etc.).
 25. The LLM is invoked with the composed prompt. Response tokens and reasoning chunks are streamed. Reasoning chunks arrive via LangChain `content_blocks` (OpenAI, Gemini, Anthropic) or `additional_kwargs["reasoning_content"]` (vLLM via `ChatVLLMReasoning` subclass).
 26. If the LLM requests tool calls:
