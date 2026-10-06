@@ -103,11 +103,11 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 |---|---|---|
 | [0042](0042-llm-tool-result-inspection.md) | LLM classifier for model-visible tool results and errors | service, operator, agentic-operator, agentic-sandbox |
 
-### Agentic Data Collection (2026-09)
+### Agentic Data Collection (2026-10)
 
 | # | Decision | Repos |
 |---|---|---|
-| [0043](0043-agentic-data-collection-via-otel.md) | Trace-only Agentic collection with mechanically classified raw candidates and Dataverse-owned logical models | operator, agentic-operator, agentic-sandbox, collector, Dataverse data product |
+| [0043](0043-agentic-data-collection-via-otel.md) | Target architecture: first stage is local FileExporter trace-batch JSONL; later Dataverse OTel consumption and operator wiring; staged rollout and integration limits are documented in the ADR | operator, agentic-operator, agentic-sandbox, collector, lightspeed-core/lightspeed-to-dataverse-exporter |
 
 ### Operand Network Policies (2026-09)
 

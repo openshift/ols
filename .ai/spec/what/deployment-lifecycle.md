@@ -31,7 +31,7 @@ The Kubernetes operator that deploys and manages all OpenShift Lightspeed compon
 10. **PostgreSQL**: Single-replica database deployment. TLS certificates provisioned via the service-ca operator.
 11. **App Server**: FastAPI application deployment with:
     - [PLANNED: OLS-3697] RHOKP standalone Deployment/Service (`lightspeed-rhokp`) — serves OKP content via Solr HTTPS on port 8443; requires ~75 GiB EmptyDir. Reconciled before app-server. Not deployed when `byokRAGOnly` is true.
-    - Data collector sidecar (if feedback/transcripts enabled and telemetry secret exists)
+    - Classic data collector sidecar (if feedback/transcripts enabled and telemetry secret exists)
     - OpenShift MCP server sidecar (if introspection enabled)
     - RHOKP wait init container (when `!byokRAGOnly`): polls RHOKP Solr ping endpoint until it responds (~360s timeout), ensuring the app-server does not start until RHOKP is reachable. Follows the same pattern as the PostgreSQL wait init container.
     - OpenShift MCP server standalone Deployment/Service (if introspection enabled)
@@ -43,7 +43,7 @@ The Kubernetes operator that deploys and manages all OpenShift Lightspeed compon
 
 11c. All operator-managed container defaults follow the [OpenShift resource conventions](https://github.com/openshift/enhancements/blob/master/CONVENTIONS.md#resources-and-limits): defaults declare CPU and memory requests only, and do not set resource limits. This applies to all containers across all deployments (Console UI, PostgreSQL, App Server and its sidecars, standalone RHOKP, standalone MCP). Users may override via the CRD to set limits if their environment requires it. [PLANNED: OLS-3697] The RHOKP standalone Deployment's ~75 GiB EmptyDir sizeLimit is unaffected by this convention.
 
-11d. [PLANNED: OLS-3569] **Agentic data exporter:** On the OCP ≥ 5.0 v2 bundle, the operator conditionally adds the separate Agentic exporter and its dedicated shared `emptyDir` to the Collector pod. The authoritative gate, topology, Classic coexistence, and ownership are defined in `agentic-data-collection.md`.
+11d. [PLANNED: OLS-4246] **Agentic data collection:** The planned first stage writes native OTLP trace-batch JSONL to `/var/lib/lightspeed-data/otel/traces.jsonl` via FileExporter and a 500Mi pod-local `emptyDir` mounted read-write only in Collector. The sole collection gate is `transcriptsDisabled`: false or unset enables the local branch; true disables it. No telemetry credentials or additional OCP-version gate apply to local files. This does not change ADR 0037's OCP ≥ 5.0 support boundary for Agentic operands. The first stage adds no Agentic Dataverse sidecar; the Classic app-server sidecar remains unchanged. Later operator wiring is planned to run the existing exporter in `data_mode: otel` against rotated direct-child backups, with read-only input and a writable ledger outside it. Producer requirements remain in [the canonical collection contract](agentic-data-collection.md). The FileExporter-capable Collector image and compatible operator configuration must ship together.
 
 ### External Resource Watching
 
@@ -104,7 +104,7 @@ The operator accepts image overrides at startup: `--service-image`, `--console-i
 
 | Repo | Owns |
 |---|---|
-| **lightspeed-operator** | OLSConfig CR reconciliation, resource generation (ConfigMaps, Secrets, RBAC, NetworkPolicies), deployment creation and health monitoring, external resource watching, restart triggers, status reporting, finalizer cleanup, console plugin activation, and image version selection per OCP version. Also deploys agentic alerts adapter and agentic console plugin as reconciled operands and, under OLS-3569, the conditional Collector-pod resources owned by `agentic-data-collection.md`. |
+| **lightspeed-operator** | OLSConfig CR reconciliation, resource generation (ConfigMaps, Secrets, RBAC, NetworkPolicies), deployment creation and health monitoring, external resource watching, restart triggers, status reporting, finalizer cleanup, console plugin activation, and image version selection per OCP version. Also deploys agentic alerts adapter and agentic console plugin as reconciled operands; the OLS-4246 first-stage Collector file branch is proposed, with Dataverse OTel consumer mount/sidecar wiring planned under `agentic-data-collection.md`. |
 | **lightspeed-service** | Reads generated `olsconfig.yaml` at startup. Does not participate in deployment — is deployed by the operator. |
 | **lightspeed-console** | Static files served by nginx. ConsolePlugin CR registered by the operator. Does not self-deploy. |
 | **lightspeed-agentic-alerts-adapter** | Polls AlertManager, creates AgenticRun CRs. Deployed by the lightspeed-operator. Does not self-deploy. |
@@ -120,6 +120,6 @@ The operator accepts image overrides at startup: `--service-image`, `--console-i
 | OLS-3697 | RHOKP standalone HTTPS cutover — sidecar replaced by `lightspeed-rhokp` Deployment/Service. ServiceMonitors added for RHOKP and MCP. |
 | OLS-3899 | Agentic operands (agentic console, alerts adapter, handoff) present only on OCP ≥ 5.0 (v2 bundle). OCP 4.x ships the v1 classic bundle with none of them. See decision 0037. |
 | OLS-3450 | Credential hot-reload: opt-in `spec.ols.credentialHotReload` flag skips LLM secret watching/restart; service re-reads credentials per request. See design spec `docs/superpowers/specs/2026-09-01-credential-hot-reload-design.md`. |
-| OLS-3569 | Agentic trace-only data collection: Collector-side JSONL spool and Dataverse exporter sidecar controlled by the existing transcript opt-out. |
+| OLS-4246 | Staged Agentic trace-only collection: first a transcript-opt-out-gated local FileExporter trace-batch JSONL path with no uploader; later a Dataverse `data_mode: otel` rotated-file consumer and operator source/ledger wiring, with final wiring planned. Producer requirements are in [the canonical collection contract](agentic-data-collection.md). |
 | OLS-2991 | OCP 4.23 release artifacts — extend v1 bundle annotation to `v4.16-v4.23`, create `ols-fbc-v4-23` Konflux Application, add staging and prod ReleasePlans to `konflux-release-data`. |
 | OLS-2992 | OCP 5.0 release artifacts — create v2 bundle Konflux Application (`ols-bundle-v2`), create `ols-fbc-v5-0` FBC Application, add v2 ReleasePlans to `konflux-release-data`; inaugural agentic-stack release. |
