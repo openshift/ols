@@ -1,5 +1,7 @@
 # Agentic Version Gating (OLS-3899) — Design
 
+> **Historical proposal:** this design specifies the earlier v1/v2 version-split bundle approach. It is superseded by OLS-4007 and [decision 0045](../../../.ai/spec/decisions/0045-unified-olm-bundle-console-gate.md), which select one unified bundle and restrict only the agentic console on OCP 4.x. Retained for design history only; do not use as the current bundle specification.
+
 **Status:** Draft for review
 **Date:** 2026-08-25
 **Jira:** OLS-3899
