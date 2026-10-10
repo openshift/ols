@@ -25,19 +25,24 @@ Cross-repo workspace for OpenShift Lightspeed — shared specs, routing, and AI 
 Clone all repos into this directory:
 
 ```bash
-for repo in lightspeed-service lightspeed-operator lightspeed-console lightspeed-rag-content \
-  lightspeed-agentic-operator lightspeed-agentic-console lightspeed-agentic-sandbox \
-  lightspeed-agentic-alerts-adapter lightspeed-hub lightspeed-hub-ui \
-  lightspeed-otel-collector lightspeed-team-harness ols-load-generator; do
-  git clone git@github.com:openshift/$repo.git
-done
+./setup.sh clone
+```
+
+To clone from your GitHub forks and configure upstream remotes, use either form:
+
+```bash
+./setup.sh clone-fork <github-user>
+# or
+GITHUB_USER=<github-user> ./setup.sh clone-fork
 ```
 
 Pull all repos:
 
 ```bash
-for d in */; do [ -d "$d/.git" ] && echo "=== $d ===" && git -C "$d" pull --ff-only; done
+./setup.sh pull
 ```
+
+Run `./setup.sh help` for the complete command list and examples.
 
 ## Specs
 
