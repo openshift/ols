@@ -1,8 +1,10 @@
 # 0037: Agentic Version Gating
 
-**Status:** Accepted
+**Status:** Superseded by [0045: Unified OLM Bundle with an Agentic Console Version Gate](0045-unified-olm-bundle-console-gate.md)
 **Applies to:** lightspeed-operator, lightspeed-agentic-operator
 **Jira:** OLS-3899
+
+> Historical decision: this records the version-split bundle strategy adopted for OLS-3899. The later OLS-4007 consolidation replaces that release model with one unified bundle and restricts only the agentic console on OCP 4.x; this record is retained to explain the earlier design and migration context.
 
 ## Context
 
