@@ -32,6 +32,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Understand how RAG indexes are built and consumed | `what/rag-pipeline.md` |
 | Understand how the operator deploys everything | `what/deployment-lifecycle.md` |
 | Understand how a user query is processed | `what/query-pipeline.md` |
+| Understand A2A delegation and the OLS A2A endpoint | `what/a2a-interoperability.md` |
 | Understand tool-result prompt-injection inspection | `what/tool-result-inspection.md` |
 | Understand operand network policy scope and egress exceptions | `what/operand-network-policies.md` |
 | Understand the agentic security model | `what/agentic-security.md` |
