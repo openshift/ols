@@ -26,4 +26,4 @@ Rules that apply across all repositories in the OLS workspace. Violating any of 
 
 ## Version Support
 
-11. Classic OLS is supported on all OCP versions. The agentic layer (agentic-operator, agentic console plugin, agentic sandbox, alerts adapter, and the classic operator's agentic operands/handoff) is installed only on OCP ≥ 5.0. Every OCP 4.x runs classic-only, with no agentic components, CRDs, or RBAC present. See decision `0037-agentic-version-gating.md`.
+11. [PLANNED: OLS-4007] The unified OLM bundle installs Classic and Agentic controllers, agentic CRDs, and static RBAC on supported OCP versions. [PLANNED: OLS-4349] On OCP 4.x, the agentic console plugin MUST NOT be deployed or activated; only the console is version-gated. The Agentic backend, configured alerts adapter, handoff, and client CA Secrets MUST NOT be blocked solely by OCP version or by the absence of AgenticOLSConfig. See decision `0045-unified-olm-bundle-console-gate.md`.

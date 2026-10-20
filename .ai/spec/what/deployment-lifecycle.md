@@ -2,7 +2,7 @@
 
 The Kubernetes operator that deploys and manages all OpenShift Lightspeed components from a single `OLSConfig` custom resource.
 
-**Version gating:** the agentic operands described below (agentic console plugin, alerts adapter, and the classic→agentic handoff) are present only on OCP ≥ 5.0, where the operator ships from the v2 (full) bundle. On OCP 4.x the operator ships from the v1 (classic) bundle and reconciles none of them. See decision `decisions/0037-agentic-version-gating.md`.
+**Unified bundle [PLANNED: OLS-4007]; console-only version gate [PLANNED: OLS-4349]:** one OLM bundle installs both controllers and their CRDs/RBAC on supported OCP 4.x and 5.x clusters. The Classic operator reconciles the agentic console plugin only for a confirmed completed OCP 5.0+ version. On confirmed 4.x it does not deploy or activate that plugin; unknown/incomplete version status must not introduce it. This OCP-version check does not gate AgenticRun processing, the configured alerts adapter, handoff, or agentic client CA Secrets; the agentic-operator's broader gate was reverted. See decision `decisions/0045-unified-olm-bundle-console-gate.md`.
 
 ## End-to-End Flow
 
@@ -12,18 +12,18 @@ The Kubernetes operator that deploys and manages all OpenShift Lightspeed compon
 
 ### Reconciliation
 
-2. The operator adds a finalizer (`ols.openshift.io/finalizer`) on first reconcile and returns immediately.
+2. The operator adds a finalizer (`ols.openshift.io/finalizer`) on first reconcile and returns immediately. [PLANNED: OLS-4349] ClusterVersion decisions affect only the agentic console; unreadable or incomplete version status must not prevent Classic reconciliation or backend-supporting resources from reconciling. Explicit OLSConfig deletion uses its finalizer regardless of version.
 3. On subsequent reconciles, the operator validates external references: LLM credential secrets, custom TLS secrets, proxy CA certificates.
 4. The operator annotates user-provided external resources (secrets, configmaps) with `ols.openshift.io/watcher: cluster` to enable change watching.
 
 ### Phase 1 — Independent Resources (continue-on-error)
 
-5. The operator generates ConfigMaps: `olsconfig` (from CR spec), system prompt override, MCP config, agentic console nginx config.
-6. The operator creates or updates Secrets: LLM credentials (from provider `credentialsSecretRef`), custom TLS (from `tlsConfig.keyCertSecretRef`).
-7. The operator creates ServiceAccounts, Roles, RoleBindings for console, PostgreSQL, app server, alerts adapter, and agentic console.
+5. The operator generates ConfigMaps: `olsconfig` (from CR spec), system prompt override, MCP config, and, when the console is eligible, agentic console nginx config. The version gate applies only to agentic console resources.
+6. The operator creates or updates Secrets: LLM credentials (from provider `credentialsSecretRef`), custom TLS (from `tlsConfig.keyCertSecretRef`). Agentic client CA Secrets follow their own configuration, not the console's OCP-version gate.
+7. The operator creates ServiceAccounts, Roles, RoleBindings for console, PostgreSQL, app server, and configured alerts adapter; agentic console-specific resources follow the console gate.
 7a. For the alerts adapter: ServiceAccount, ClusterRole (`agentic.openshift.io/agenticruns`: create, list, get), ClusterRoleBinding, RoleBinding in `openshift-monitoring` (binds SA to `monitoring-alertmanager-view`).
 7b. For the agentic console: ServiceAccount.
-8. The operator creates NetworkPolicies for all components (including alerts adapter and agentic console).
+8. The operator creates NetworkPolicies for reconciled components. The console gate applies to the agentic console NetworkPolicies, not alerts-adapter policies.
 
 ### Phase 2 — Deployments (with health checks)
 
@@ -36,14 +36,14 @@ The Kubernetes operator that deploys and manages all OpenShift Lightspeed compon
     - RHOKP wait init container (when `!byokRAGOnly`): polls RHOKP Solr ping endpoint until it responds (~360s timeout), ensuring the app-server does not start until RHOKP is reachable. Follows the same pattern as the PostgreSQL wait init container.
     - OpenShift MCP server standalone Deployment/Service (if introspection enabled)
     - BYOK RAG init containers (copy customer index content from OCI image to shared volume, when `spec.ols.rag` configured)
-11a. **Alerts Adapter**: Single-replica Go deployment. Polls AlertManager for firing alerts and creates `AgenticRun` CRs. `ALERTMANAGER_URL` env hardcoded to `https://alertmanager-main.openshift-monitoring.svc:9094`. Status condition: `AlertsAdapterReady`.
-11b. **Agentic Console**: Single-replica nginx deployment with TLS via service-ca cert. ConsolePlugin CR created and activated in the Console CR alongside the classic console plugin. Status condition: `AgenticConsolePluginReady`.
+11a. **Alerts Adapter** (when configured, independent of OCP version): Single-replica Go deployment. Polls AlertManager for firing alerts and creates `AgenticRun` CRs. `ALERTMANAGER_URL` env hardcoded to `https://alertmanager-main.openshift-monitoring.svc:9094`. Status condition: `AlertsAdapterReady`.
+11b. **Agentic Console** [PLANNED: OLS-4349] (only on confirmed completed OCP 5.0+ when an image is configured): Single-replica nginx deployment with TLS via service-ca cert. ConsolePlugin CR created and activated in the Console CR alongside the classic console plugin. Status condition: `AgenticConsolePluginReady`.
 
 ### Resource Conventions [OLS-3397]
 
 11c. All operator-managed container defaults follow the [OpenShift resource conventions](https://github.com/openshift/enhancements/blob/master/CONVENTIONS.md#resources-and-limits): defaults declare CPU and memory requests only, and do not set resource limits. This applies to all containers across all deployments (Console UI, PostgreSQL, App Server and its sidecars, standalone RHOKP, standalone MCP). Users may override via the CRD to set limits if their environment requires it. [PLANNED: OLS-3697] The RHOKP standalone Deployment's ~75 GiB EmptyDir sizeLimit is unaffected by this convention.
 
-11d. [PLANNED: OLS-4246] **Agentic data collection:** The planned first stage writes native OTLP trace-batch JSONL to `/var/lib/lightspeed-data/otel/traces.jsonl` via FileExporter and a 500Mi pod-local `emptyDir` mounted read-write only in Collector. The sole collection gate is `transcriptsDisabled`: false or unset enables the local branch; true disables it. No telemetry credentials or additional OCP-version gate apply to local files. This does not change ADR 0037's OCP ≥ 5.0 support boundary for Agentic operands. The first stage adds no Agentic Dataverse sidecar; the Classic app-server sidecar remains unchanged. Later operator wiring is planned to run the existing exporter in `data_mode: otel` against rotated direct-child backups, with read-only input and a writable ledger outside it. Producer requirements remain in [the canonical collection contract](agentic-data-collection.md). The FileExporter-capable Collector image and compatible operator configuration must ship together.
+11d. [PLANNED: OLS-4246] **Agentic data collection:** The planned first stage writes native OTLP trace-batch JSONL to `/var/lib/lightspeed-data/otel/traces.jsonl` via FileExporter and a 500Mi pod-local `emptyDir` mounted read-write only in Collector. The sole collection gate is `transcriptsDisabled`: false or unset enables the local branch; true disables it. No telemetry credentials or additional OCP-version gate apply to local files. This does not introduce an OCP-version gate for backend collection; only the agentic console is version-restricted by decision 0045. The first stage adds no Agentic Dataverse sidecar; the Classic app-server sidecar remains unchanged. Later operator wiring is planned to run the existing exporter in `data_mode: otel` against rotated direct-child backups, with read-only input and a writable ledger outside it. Producer requirements remain in [the canonical collection contract](agentic-data-collection.md). The FileExporter-capable Collector image and compatible operator configuration must ship together.
 
 ### External Resource Watching
 
@@ -54,7 +54,7 @@ The Kubernetes operator that deploys and manages all OpenShift Lightspeed compon
 
 ### Status Reporting
 
-15. The operator reports `OverallStatus` (Ready/NotReady) and condition types: `ApiReady`, `CacheReady`, `ConsolePluginReady`, `AlertsAdapterReady` [PLANNED: OLS-3236], `AgenticConsolePluginReady` [PLANNED: OLS-3236], `OtelCollectorReady`, `MCPServerReady`, `ResourceReconciliation`.
+15. The operator reports `OverallStatus` (Ready/NotReady) and condition types: `ApiReady`, `CacheReady`, `ConsolePluginReady`, `AlertsAdapterReady` [PLANNED: OLS-3236], `AgenticConsolePluginReady` [PLANNED: OLS-3236], `OtelCollectorReady`, `MCPServerReady`, `ResourceReconciliation`. [PLANNED: OLS-4349] Version uncertainty affects only the agentic console condition, not alerts-adapter readiness or backend operation.
 16. On pod failures, the operator includes diagnostic info: container reason, message, exit code.
 
 ### Cleanup on Deletion
@@ -65,7 +65,7 @@ The Kubernetes operator that deploys and manages all OpenShift Lightspeed compon
 18b. The operator deletes the agentic ConsolePlugin CR.
 18c. The operator deletes the alerts-adapter RoleBinding in `openshift-monitoring`, ClusterRoleBinding, and ClusterRole.
 19. The operator lists and deletes all owned resources (by OwnerReference).
-20. The operator removes the finalizer, even if cleanup partially fails.
+20. The operator removes the finalizer, even if cleanup partially fails. Explicit OLSConfig deletion cleanup is not blocked by the agentic console's version check.
 
 ## Integration Contracts
 
@@ -118,8 +118,10 @@ The operator accepts image overrides at startup: `--service-image`, `--console-i
 | OLS-3397 | Remove default resource limits from all operator-managed containers per OpenShift conventions. Keep requests only. CRD still accepts user-specified limits. |
 | OLS-3799 | Add wait-for-rhokp init container to app-server deployment (when `!byokRAGOnly`) to block startup until RHOKP Solr is reachable. Service-side: replace `@cached_property` with lazy init + unlimited retry for `SolrHybridSearch` client. |
 | OLS-3697 | RHOKP standalone HTTPS cutover — sidecar replaced by `lightspeed-rhokp` Deployment/Service. ServiceMonitors added for RHOKP and MCP. |
-| OLS-3899 | Agentic operands (agentic console, alerts adapter, handoff) present only on OCP ≥ 5.0 (v2 bundle). OCP 4.x ships the v1 classic bundle with none of them. See decision 0037. |
+| OLS-4007 | Consolidate Classic and Agentic into one OLM bundle; gate only the agentic console by OCP version. See decision 0045. |
+| OLS-4348 | Define product strategy, validation gates, and approval criteria for retiring the Classic-only v1 bundle. |
+| OLS-4349 | Build one unified Classic + Agentic bundle and restrict agentic console reconciliation on OCP 4.x without gating the backend. |
+| OLS-4351 | Validate fresh installs and supported v1/unified migrations across OCP 4.x and 5.0, including upgrade and downgrade paths. |
+| OLS-4352 | Migrate FBC/Konflux release paths to the unified bundle, verify identical bundle digests across supported catalogs, and retire Classic v1 after the validation gates pass. |
 | OLS-3450 | Credential hot-reload: opt-in `spec.ols.credentialHotReload` flag skips LLM secret watching/restart; service re-reads credentials per request. See design spec `docs/superpowers/specs/2026-09-01-credential-hot-reload-design.md`. |
 | OLS-4246 | Staged Agentic trace-only collection: first a transcript-opt-out-gated local FileExporter trace-batch JSONL path with no uploader; later a Dataverse `data_mode: otel` rotated-file consumer and operator source/ledger wiring, with final wiring planned. Producer requirements are in [the canonical collection contract](agentic-data-collection.md). |
-| OLS-2991 | OCP 4.23 release artifacts — extend v1 bundle annotation to `v4.16-v4.23`, create `ols-fbc-v4-23` Konflux Application, add staging and prod ReleasePlans to `konflux-release-data`. |
-| OLS-2992 | OCP 5.0 release artifacts — create v2 bundle Konflux Application (`ols-bundle-v2`), create `ols-fbc-v5-0` FBC Application, add v2 ReleasePlans to `konflux-release-data`; inaugural agentic-stack release. |
