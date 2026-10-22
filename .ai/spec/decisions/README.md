@@ -114,3 +114,9 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0044](0044-operand-network-policy-scope.md) | Scoped operand egress, documented dynamic-destination exceptions, standard NetworkPolicy pending acceptance | operator, hub, agentic-operator |
+
+### A2A Interoperability (2026-09)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0044](0044-a2a-agent-interoperability.md) | Model-selected delegation to approved A2A agents and authenticated inbound OLS A2A endpoint | service, operator |
