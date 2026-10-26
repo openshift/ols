@@ -4,7 +4,10 @@ lightspeed-agentic-console/
 lightspeed-agentic-operator/
 lightspeed-agentic-sandbox/
 lightspeed-console/
+lightspeed-hub/
+lightspeed-hub-ui/
 lightspeed-operator/
+lightspeed-otel-collector/
 lightspeed-rag-content/
 lightspeed-service/
 lightspeed-team-harness/
