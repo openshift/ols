@@ -19,10 +19,7 @@ and
 This document specifies **how those rules are tested**, not the rules
 themselves.
 
-> **Status:** All rules are `[PLANNED]`. The multicluster feature is
-> specification-only across every repo — no hub, agentic-operator
-> `spec.targetCluster`, or adapter code exists yet. This spec defines the target
-> test architecture so tests can be written alongside the code.
+> **Status:** This document describes planned cross-repo test coverage, not an implementation inventory. Hub and remote-run code already exist; individual suites may have landed independently. OLS-4632 coverage below is planned and does not assert that the feature or its tests have been implemented.
 
 ## Design
 
@@ -76,8 +73,8 @@ over real remote kube-api. Owned primarily by `lightspeed-hub` and
   kind apiserver, obtains a 24h bound token via the TokenRequest API, and a
   sandbox pod on the hub targets the spoke using that token (multicluster-ops
   flow steps 4–6, Identity Model).
-- **RBAC scoping**: the ephemeral token succeeds inside `targetNamespaces` and
-  is denied outside them (security invariant 2).
+- **RBAC scoping**: distinguish cluster-wide baseline reads from approved execution grants. Namespace-scoped execution writes succeed only in the namespaces declared by the approved option; cluster-scoped writes require explicitly approved cluster-scoped RBAC (security invariant 2).
+- **Configurable baseline [PLANNED: OLS-4632]**: cover fleet defaults, explicit empty/replacement lists, additive spoke roles, administrator-created seed bindings, and per-spoke isolation. Inspect a test custom resource with an added reader role; verify every phase receives baseline reads and only execution receives approved writes. Test missing/unsafe roles, discovery/authorization failures, no eligible roles, configuration changes without restart, concurrent runs, partial setup, and restart/configuration-independent cleanup without modifying source bindings. Detailed requirements: [multicluster-agent-rbac.md](multicluster-agent-rbac.md).
 - **Full AgenticRun lifecycle with mock agent** against a real spoke reaches
   `Completed`.
 - **Fleet visibility tolerates failure**: with one spoke's apiserver stopped,
@@ -102,6 +99,7 @@ asserts, plus:
   agentic-operator phase-transition assertions from `product-e2e-testing.md`.
 - **Multi-spoke fleet**: with 2+ hosted spokes, runs targeting different spokes
   complete independently.
+- **Custom resource reads [PLANNED: OLS-4632]**: verify PerformanceProfile/Tuned inspection with administrator-installed eligible reader roles on an OpenShift-capable tier, and confirm the additions do not leak to another spoke.
 - **Real ROSA-HCP identity path** end-to-end (hub on the management cluster,
   spokes as hosted clusters).
 - **hub-ui** (T2; optionally T1 against a mock backend): the fleet dashboard

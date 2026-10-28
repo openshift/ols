@@ -2,6 +2,10 @@
 
 Security constraints for the agentic run system. Covers approval authorization, cancellation authorization, execution-time permission isolation, and access revocation during termination. Cross-references `agentic-runs.md` for the overall workflow and `agentic-run-termination.md` for stop behavior. For how MCP tools are admitted and how RBAC for admitted mutating Kubernetes tools is derived before binding it to the per-run execution SA, see `mcp-tool-rbac.md` (OLS-4059).
 
+## Multicluster Baseline RBAC [PLANNED: OLS-4632]
+
+[Multicluster agent baseline RBAC](multicluster-agent-rbac.md) defines configurable fleet defaults and additive spoke reader roles. Every remote phase uses its own ephemeral spoke SA and dedicated reader bindings; `openshift-lightspeed-managed/lightspeed-agent` is only the discovery seed. Baseline roles remain read-only and exclude Secret/RBAC-resource access. Approved execution permissions remain separate. For remote runs, that contract supersedes the historical shared analysis/verification SA and fixed reader-role descriptions below; it does not redesign local runs.
+
 ## Security Gaps Addressed
 
 Two confirmed vulnerabilities in the current implementation motivate this spec:

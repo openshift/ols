@@ -114,3 +114,9 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0044](0044-operand-network-policy-scope.md) | Scoped operand egress, documented dynamic-destination exceptions, standard NetworkPolicy pending acceptance | operator, hub, agentic-operator |
+
+### Multicluster Agent Baseline RBAC (2026-10)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0045](0045-multicluster-agent-baseline-rbac.md) | Configurable fleet defaults and spoke additions via seed-SA discovery, preserving dedicated per-step bindings | hub, agentic-operator |

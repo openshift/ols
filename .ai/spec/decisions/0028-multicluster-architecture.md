@@ -3,6 +3,8 @@
 **Status:** Accepted (revised 2026-08-20)
 **Applies to:** lightspeed-hub, lightspeed-hub-ui, lightspeed-agentic-operator
 
+**Amendment [PLANNED: OLS-4632]:** [ADR 0045](0045-multicluster-agent-baseline-rbac.md) refines baseline reader provisioning and remote selection. The agentic operator creates dedicated per-step bindings rather than adding subjects to shared source bindings. Its planned source discovery uses the spoke seed SA with configurable fleet defaults and spoke additions. The namespace-only constraint below does not describe all current permissions: baseline reads can be cluster-wide and approved execution can include cluster-scoped RBAC; see [multicluster operations](../what/multicluster-ops.md#security-invariants).
+
 ## Context
 
 Multicluster operations need a central control plane for fleet-wide agentic operations. Spoke clusters may be managed services (ROSA, ARO, HCP) where sensitive credentials must not reside, or edge devices with limited resources. Different user populations need different credential sources. The architecture must support both zero/minimal spoke footprint (hub-managed) and full spoke autonomy (spoke-local) as a future option.
