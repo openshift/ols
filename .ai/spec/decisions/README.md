@@ -67,11 +67,12 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | [0035](0035-remove-claude-sdk.md) | Remove proprietary binary from sandbox | sandbox |
 | [0036](0036-rhokp-standalone-deployment.md) | Standalone HTTPS, not sidecar | operator, service |
 
-### Version Gating (2026-08)
+### Version Gating and Bundle Consolidation (2026-08 — 2026-10)
 
 | # | Decision | Repos |
 |---|---|---|
-| [0037](0037-agentic-version-gating.md) | Agentic layer gated to OCP ≥ 5.0 via two version-split bundles | operator, agentic-operator |
+| [0037](0037-agentic-version-gating.md) | **Superseded:** agentic layer gated to OCP ≥ 5.0 via two version-split bundles | operator, agentic-operator |
+| [0042](0042-unified-olm-bundle-runtime-gating.md) | One unified OLM bundle; tri-state Version-CR gate (Enabled/Disabled/Unknown) plus explicit AgenticOLSConfig creation for workflows | operator, agentic-operator |
 
 ### MCP Tool RBAC (2026-08)
 
