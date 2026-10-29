@@ -1,6 +1,8 @@
 # Deployment Lifecycle
 
-The Kubernetes operator that deploys and manages all OpenShift Lightspeed components from a single `OLSConfig` custom resource.
+The Kubernetes operator deploys and manages the core OpenShift Lightspeed components from a single `OLSConfig` custom resource.
+
+**On-demand multicluster [PLANNED: OLS-4665]:** the v2 bundle also installs hub APIs and static ServiceAccount/RBAC, but no hub Deployment. Creating the singleton HubConfig activates an OLS-operator-managed hub operand; no OLSConfig activation property is introduced. Deleting HubConfig drains workflows and decommissions the fleet before runtime removal. This is a separate protected lifecycle, not the immediate best-effort OLSConfig cleanup below. See [multicluster operations](multicluster-ops.md#on-demand-activation-and-shutdown-planned-ols-4665), [ADR 0046](../decisions/0046-hubconfig-driven-multicluster-lifecycle.md), and the [design spec](../../../docs/superpowers/specs/2026-10-29-OLS-4665-on-demand-multicluster-design.md).
 
 **Version gating:** the agentic operands described below (agentic console plugin, alerts adapter, and the classic→agentic handoff) are present only on OCP ≥ 5.0, where the operator ships from the v2 (full) bundle. On OCP 4.x the operator ships from the v1 (classic) bundle and reconciles none of them. See decision `decisions/0037-agentic-version-gating.md`.
 

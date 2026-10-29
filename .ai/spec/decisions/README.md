@@ -120,3 +120,9 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0045](0045-multicluster-agent-baseline-rbac.md) | Configurable fleet defaults and spoke additions via seed-SA discovery, preserving dedicated per-step bindings | hub, agentic-operator |
+
+### On-Demand Multicluster Lifecycle (2026-10)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0046](0046-hubconfig-driven-multicluster-lifecycle.md) | HubConfig activates an OLS-managed hub operand; install-time RBAC, drain-before-decommission shutdown | operator, hub, agentic-operator, alerts-adapter |
