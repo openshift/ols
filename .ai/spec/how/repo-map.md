@@ -130,6 +130,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Fleet-wide alert aggregation | lightspeed-hub | `what/fleet-coordination.md` |
 | Spoke health monitoring | lightspeed-hub | `what/spoke-lifecycle.md` |
 | Cross-repo multicluster flow | ols (parent) | `what/multicluster-ops.md` |
+| HubConfig-driven activation, static hub RBAC, drain/decommission shutdown | lightspeed-operator, lightspeed-hub, lightspeed-agentic-operator, lightspeed-agentic-alerts-adapter | [PLANNED: OLS-4665] Parent `what/multicluster-ops.md`, `decisions/0046-hubconfig-driven-multicluster-lifecycle.md`; [design](../../../docs/superpowers/specs/2026-10-29-OLS-4665-on-demand-multicluster-design.md) |
 | Fleet/spoke agent baseline roles, remote reader discovery and cleanup | lightspeed-hub, lightspeed-agentic-operator | [PLANNED: OLS-4632] Parent `what/multicluster-agent-rbac.md`; ADR `decisions/0045-multicluster-agent-baseline-rbac.md`; child specs to align during implementation: hub `what/system-overview.md`, `what/spoke-lifecycle.md`; agentic-operator `what/sandbox-execution.md`, `how/reconciler.md` |
 | Hub alerts-adapter egress exception | lightspeed-hub | [PLANNED: OLS-4171] Parent `what/operand-network-policies.md`; child `what/system-overview.md` |
 

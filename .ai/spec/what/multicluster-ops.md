@@ -6,10 +6,22 @@ Cross-repo specification for fleet-scale agentic operations. A central hub clust
 >
 > **Baseline RBAC [PLANNED: OLS-4632]:** [multicluster-agent-rbac.md](multicluster-agent-rbac.md) defines fleet defaults, additive spoke reader roles, seed-SA discovery, validation, and dedicated per-step binding cleanup. It supersedes fixed-list reader selection for remote runs; approved execution RBAC is unchanged.
 
+## On-Demand Activation and Shutdown [PLANNED: OLS-4665]
+
+The [approved discussion design](../../../docs/superpowers/specs/2026-10-29-OLS-4665-on-demand-multicluster-design.md) and [ADR 0046](../decisions/0046-hubconfig-driven-multicluster-lifecycle.md) define the planned delivery/lifecycle contract:
+
+- OLS v2 installs hub APIs and static ServiceAccount/RBAC but no hub Deployment. The OLS operator deploys and lifecycle-manages the hub when the singleton HubConfig is created; no OLSConfig activation property is used.
+- HubConfig explicitly selects Secret registration or MCE discovery. MCE defaults to ongoing discovery of all managed clusters, optionally restricted by a selector. SpokeCluster resources may be staged before activation but remain inactive.
+- HubConfig deletion stops new fleet work, drains existing workflows, decommissions registrations, deletes generated credentials, and removes hub runtime resources. Approval waits block drain until completed or explicitly cancelled. Individual spoke deletion also drains before credential cleanup.
+- Unreachable-spoke decommissioning is best-effort only after draining, with cleanup warnings. Preserve administrator credential Secrets and install-time RBAC. Re-enable requires a new HubConfig; single-cluster work is unaffected.
+
+This planned contract supersedes immediate unmanage/preserve-registration behavior on HubConfig deletion in the child hub spec. It also replaces OLS-4665's currently written OLSConfig activation requirement; ticket/team alignment and technical protocol validation remain follow-ups, not completed implementation.
+
 ## Repos Involved
 
 | Repo | Role |
 |---|---|
+| lightspeed-operator | [PLANNED: OLS-4665] v2 hub assets/static RBAC; HubConfig-driven hub operand deployment and protected shutdown |
 | lightspeed-hub | Hub operator: SpokeCluster CRs, credential broker, adapter orchestrator, spoke watcher |
 | lightspeed-hub-ui | Hub console: fleet dashboard, spoke management, approval UI |
 | lightspeed-agentic-operator | AgenticRun reconciliation, `spec.targetCluster` support, ephemeral SA lifecycle on spoke |
@@ -168,7 +180,7 @@ MVP uses direct kube-api connectivity. The admin ensures network path between hu
 
 ## What Does NOT Change
 
-- OLSConfig CR and LLM provider configuration
+- OLSConfig activation API and LLM provider configuration (planned multicluster activation uses HubConfig, not a new OLSConfig property)
 - MCP server definitions and tool filtering
 - Sandbox runtime (lightspeed-agentic-sandbox)
 - Agent and LLMProvider CRDs
