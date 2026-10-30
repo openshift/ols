@@ -17,7 +17,7 @@ The core Q&A assistant. A user asks a question in the console, the service proce
 
 Autonomous cluster operations. Alerts or user requests trigger multi-phase AI workflows (analysis → approval → execution → verification) that can take actions on the cluster through sandboxed agents.
 
-The entire agentic layer is installed only on OCP ≥ 5.0. On OCP 4.x, OLS runs classic-only with no agentic components, CRDs, or RBAC present. See constraint 10 in `constraints.md` and decision `decisions/0037-agentic-version-gating.md`.
+After per-version catalog cutover, the unified OLM bundle installs both controllers and the agentic CRDs/RBAC across supported OCP versions. AgenticRun workflow execution requires a matching completed OCP 5.0+ version and an explicitly created, unsuspended `AgenticOLSConfig`; OCP 4.x therefore runs Classic workloads only, although the unified bundle includes agentic controller infrastructure and APIs. On OCP 5.0+, the Classic operator may deploy configured Agentic console/adapter operands without checking for `AgenticOLSConfig`. See constraint 11 in `constraints.md` and decision `decisions/0042-unified-olm-bundle-runtime-gating.md`.
 
 1. **lightspeed-agentic-operator** (Go/kubebuilder) — Orchestrates `AgenticRun` CRs through multi-phase workflows, manages sandbox pods, enforces approval policies, materializes RBAC for execution. Spec: `lightspeed-agentic-operator/.ai/spec/README.md`
 2. **lightspeed-agentic-console** (TypeScript/React) — Console plugin providing the AI Hub UI for viewing, approving, and monitoring agentic runs. Configuration for approval policies, LLM providers, and agent tiers. Spec: `lightspeed-agentic-console/.ai/spec/README.md`
@@ -63,4 +63,4 @@ These features span multiple repos and have dedicated spec files describing the 
 | --- | --- |
 | OLS-2743 | Rebranding to "Red Hat OpenShift Intelligent Assistant" |
 | OLS-3473 | Remove Claude SDK and binaries from agentic-sandbox. Reroute Vertex/Anthropic and Bedrock paths to alternative agentic SDKs. |
-| OLS-3899 | Gate the agentic layer to OCP ≥ 5.0 via two version-split OLM bundles (v1 classic / v2 full) under one package. See decision 0037. |
+| OLS-4007 | Consolidate to one unified Classic + Agentic OLM bundle; require explicit AgenticOLSConfig creation for workflow execution and enforce runtime OCP-version safety gates. Release migration and retirement of Classic v1 are gated by OLS-4348–OLS-4352. See decision 0042. |

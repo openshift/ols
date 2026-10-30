@@ -1,6 +1,8 @@
 # Agentic Version Gating (OLS-3899) — Design
 
-**Status:** Draft for review
+> **Historical proposal:** this design specifies the earlier v1/v2 version-split bundle approach. It is superseded by OLS-4007 and [decision 0042](../../../.ai/spec/decisions/0042-unified-olm-bundle-runtime-gating.md), which select one unified bundle with runtime agentic gating. Retained for design history only; do not use as the current bundle specification.
+
+**Status:** Superseded historical draft (see decision 0042)
 **Date:** 2026-08-25
 **Jira:** OLS-3899
 **Scope:** cross-repo (`ols/.ai/spec`), lightspeed-operator, lightspeed-agentic-operator, Konflux release tooling
