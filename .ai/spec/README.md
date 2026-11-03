@@ -41,6 +41,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Understand Agentic product data collection | `what/agentic-data-collection.md` |
 | Understand multicluster operations | `what/multicluster-ops.md` |
 | Design on-demand multicluster activation and shutdown | [PLANNED: OLS-4665] [HubConfig-driven lifecycle design](../../docs/superpowers/specs/2026-10-29-OLS-4665-on-demand-multicluster-design.md); `decisions/0046-hubconfig-driven-multicluster-lifecycle.md` |
+| Plan Phase 2.1 active-spool trace export | [PLANNED: OLS-4493] [Active-spool export design](../../docs/superpowers/specs/2026-11-03-OLS-4493-active-spool-export-design.md); `decisions/0047-active-spool-tailing-for-dataverse-export.md` |
 | Configure multicluster agent baseline reader roles | [PLANNED: OLS-4632] `what/multicluster-agent-rbac.md` |
 | Understand alerts-adapter multicluster support | `what/alerts-adapter-multicluster.md` |
 | Understand how multicluster is tested | `what/multicluster-testing.md` |

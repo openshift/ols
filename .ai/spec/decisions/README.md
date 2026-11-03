@@ -127,3 +127,9 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0046](0046-hubconfig-driven-multicluster-lifecycle.md) | HubConfig activates an OLS-managed hub operand; install-time RBAC, drain-before-decommission shutdown | operator, hub, agentic-operator, alerts-adapter |
+
+### Active-Spool Export (2026-11)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0047](0047-active-spool-tailing-for-dataverse-export.md) | **Proposed:** consumer tails the active trace spool by source identity and acknowledged byte offset; at-least-once delivery, no Collector change | operator, collector, lightspeed-core/lightspeed-to-dataverse-exporter |
