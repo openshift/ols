@@ -37,7 +37,7 @@ The adapter operates in one of two modes, controlled by the `--multicluster` CLI
 5. The adapter MUST register a controller-runtime watch on `SpokeCluster` CRs (`hub.openshift.io/v1alpha1`).
 6. On SpokeCluster **create or update**: read the adapter credential Secret name from the `hub.openshift.io/alert-credential-secret` label on the CR. Fetch the Secret. Read the `alertmanager-url` and `token` keys. Construct an AlertManager HTTP client for that spoke using the Route URL and bearer token. Start (or restart) a polling loop for that spoke.
 7. On SpokeCluster **delete**: immediately stop the polling loop for that spoke. Discard the cached AlertManager client and config.
-8. The adapter MUST NOT create, stop, or delete AgenticRuns on SpokeCluster deletion. Adapters only create AgenticRuns — the hub controller owns AgenticRun lifecycle (stopping, deleting, cleanup).
+8. The adapter MUST NOT create, stop, or delete AgenticRuns on SpokeCluster deletion. Adapters only create AgenticRuns; the agentic operator owns run progression/per-run cleanup, coordinated with hub fleet lifecycle. [PLANNED: OLS-4785] Stop polling/new work at drain gate closure, not only after final CR deletion; credential presence does not authorize resumption.
 
 ### Credential Flow
 
@@ -72,6 +72,12 @@ The adapter operates in one of two modes, controlled by the `--multicluster` CLI
 
 26. The adapter uses its own pod ServiceAccount for all hub-side operations: creating AgenticRuns, listing AgenticRuns (dedup), reading Secrets, watching SpokeCluster CRs.
 27. The pod SA requires RBAC on the hub: create/list AgenticRuns in `openshift-lightspeed`, get Secrets in `openshift-lightspeed`, watch/list SpokeCluster CRs (cluster-scoped).
+
+### Drain coordination [PLANNED: OLS-4660, OLS-4785]
+
+28. Staged registrations without an active HubConfig never authorize polling/new fleet work. Fleet deletion suppresses all fleet targets; individual deletion or registry-mode-change drain suppresses only affected targets. Local adapter behavior and unaffected spokes remain unchanged.
+29. In-flight polling/submission races and manual AgenticRuns require agentic-controller execution enforcement in addition to adapter checks. Previously admitted workflows may finish under normal approval/safety rules; adapters never cancel/delete them or request early credential removal. Retain required access through remaining phases/cleanup.
+30. Consume the reviewed S0 gate contract across restarts/target refresh, rejecting stale identity/freshness state. Exact API/condition names require OLS-4659/4660 review; this spec does not invent a wire protocol. OLS-4788 real-spoke tests verify races, approval blockers, credential ordering and local/per-spoke isolation. See the adapter's `.ai/spec/what/multicluster.md` rules 18–23 and `.ai/spec/what/poll-loop.md` rule 33 for component requirements and verification scenarios. Current snapshot-based target removal can leave an in-flight cycle running; the planned drain gate must close that race without changing existing local polling/suspension behavior.
 
 ## Spec Changes Required in Other Files
 

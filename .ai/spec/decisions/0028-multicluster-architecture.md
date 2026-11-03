@@ -5,6 +5,8 @@
 
 **Amendment [PLANNED: OLS-4632]:** [ADR 0045](0045-multicluster-agent-baseline-rbac.md) refines baseline reader provisioning and remote selection. The agentic operator creates dedicated per-step bindings rather than adding subjects to shared source bindings. Its planned source discovery uses the spoke seed SA with configurable fleet defaults and spoke additions. The namespace-only constraint below does not describe all current permissions: baseline reads can be cluster-wide and approved execution can include cluster-scoped RBAC; see [multicluster operations](../what/multicluster-ops.md#security-invariants).
 
+**Lifecycle amendment [PLANNED]:** [ADR 0046](0046-hubconfig-driven-multicluster-lifecycle.md) / PR #120 supersedes activation/delivery/decommissioning, with unified packaging from [ADR 0042](0042-unified-olm-bundle-runtime-gating.md) / PR #121. Staged valid registrations do not require HubConfig-first creation admission. HubConfig deletion drains and deletes registrations; mode changes instead drain before unmanagement while retaining registrations/source Secrets (OLS-4781). Preserve separate credential-source/schema checks (OLS-4637), not the historical blanket matching/creation-order promise below. See [current lifecycle contracts](../what/multicluster-ops.md).
+
 ## Context
 
 Multicluster operations need a central control plane for fleet-wide agentic operations. Spoke clusters may be managed services (ROSA, ARO, HCP) where sensitive credentials must not reside, or edge devices with limited resources. Different user populations need different credential sources. The architecture must support both zero/minimal spoke footprint (hub-managed) and full spoke autonomy (spoke-local) as a future option.

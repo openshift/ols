@@ -21,6 +21,14 @@ themselves.
 
 > **Status:** This document describes planned cross-repo test coverage, not an implementation inventory. Hub and remote-run code already exist; individual suites may have landed independently. OLS-4632 coverage below is planned and does not assert that the feature or its tests have been implemented.
 
+## Installed lifecycle delivery split [PLANNED: OLS-4639, OLS-4788]
+
+OLS-4639 verifies installed-bundle/hub-only behavior: one unified asset/image set, no CSV/idle hub Deployment, supported permission-only ServiceAccount packaging and sole OLM ownership, pinned CRD/RBAC sync, disconnected mirroring/overrides, staged inactivity, HubConfig startup recovery/readiness, image rollouts/self-healing, concurrent condition writers, deletion during startup/restart/upgrade, and final runtime removal with static permissions/source Secrets retained. Verify completed-version tri-state safety and independent AgenticOLSConfig opt-in; Unknown is not unsupported or implicit cleanup intent. A non-OpenShift kind fixture does not prove real ClusterVersion/OLM behavior.
+
+OLS-4788 verifies real-spoke lifecycle: fleet/individual/mode-change gates against adapter/manual races; admitted workflows finishing remaining phases; named approval-wait blockers; explicit cancellation's confirmed teardown; credentials surviving credential-consuming cleanup; reachable-spoke deprovisioning and post-drain unreachable-spoke warnings; retryable hub-side failures; restart/stale-ack rejection; fresh re-enable/GitOps effects; unaffected spoke/local isolation. Mode-change tests preserve registrations/source Secrets and exercise readoption without stale cleanup. MCE discovery/default-all/selector tests require actual supported MCE integration, not assumed support on main.
+
+OLS-4660 integration fixtures round-trip the shared reviewed state and test admitted/new-run boundaries, identity/freshness, condition ownership, cleanup completion and restart-safe acknowledgement. Validate API/status examples and references against finalized OLS-4659/4660/4661 interfaces and S0–S4 delivery evidence; do not publish invented condition names as implemented APIs. Hub-only/fake-client tests do not replace remote drain/cleanup evidence. OLS-4782 and deferred selector/removal/exclusion policies are outside current-phase acceptance.
+
 ## Design
 
 Both tiers run against **real clusters** — cross-cluster RBAC, remote kube-api,
@@ -61,11 +69,8 @@ over real remote kube-api. Owned primarily by `lightspeed-hub` and
 - **Credential broker**: `SecretCredentialSource` returns a usable `rest.Config`
   from a referenced Secret; a `credentialSource` that mismatches the HubConfig
   mode is rejected (spoke-lifecycle rules 9–13).
-- **HubConfig webhook**: a SpokeCluster whose mode disagrees with the HubConfig
-  singleton is rejected (multicluster-ops CRD notes; decision 0028).
-- **Decommission best-effort**: when the spoke is unreachable, the SpokeCluster
-  CR still deletes with a warning condition rather than blocking
-  (spoke-lifecycle rule 18).
+- **Registration validation**: preserve credential-source/schema admission checks (OLS-4637), but do not require HubConfig creation order: staged valid registrations remain inactive. A mode-change mismatch follows drain-first unmanagement (OLS-4781), not deletion or ignore-without-cleanup.
+- **Decommission best-effort after drain**: unreachable-spoke remote cleanup may complete with logs/Warning Events before CR deletion only after workflows and credential-consuming cleanup drain. Hub-side failures retry. Event retention/deleted status is not a permanent cleanup report.
 
 **Real cross-cluster behavior:**
 

@@ -4,9 +4,9 @@
 
 Approved in design discussion on 2026-10-29; all behavior below is **planned**, not a claim of implementation or broader team approval. Tracking: [OLS-4665](https://redhat.atlassian.net/browse/OLS-4665), under OLS-4428. Decision: [ADR 0046](../../../.ai/spec/decisions/0046-hubconfig-driven-multicluster-lifecycle.md).
 
-This design covers the administrator experience through OperatorHub, standard console resource/YAML views, and `oc`. It does not add a hub console plugin or custom setup wizard. Delivery is through the OLS v2 bundle for OCP 5.0+, retaining the v1/v2 boundary in [ADR 0037](../../../.ai/spec/decisions/0037-agentic-version-gating.md).
+This design covers the administrator experience through OperatorHub, standard console resource/YAML views, and `oc`. It does not add a hub console plugin or custom setup wizard. Packaging is aligned by OLS-4432 with PR #121 / [ADR 0042](../../../.ai/spec/decisions/0042-unified-olm-bundle-runtime-gating.md): one unified bundle/static API, permission and image set on supported OCP 4.x and 5.x clusters. Completed OCP 5.0+ remains the runtime capability boundary. HubConfig does not bypass platform gating or independent unsuspended AgenticOLSConfig workflow opt-in. Unknown platform state is retryable, not unsupported or cleanup intent.
 
-**Requirement change:** creating the singleton HubConfig is the explicit multicluster opt-in. There is no OLSConfig multicluster activation property. This supersedes the OLSConfig activation requirement currently written in OLS-4665 and the earlier discussion proposal to enable first and configure second. The Jira ticket has not been updated by this document.
+**Requirement change:** creating the singleton HubConfig is the explicit multicluster opt-in. There is no OLSConfig multicluster activation property. This supersedes the OLSConfig activation requirement currently written in OLS-4665 and the earlier discussion proposal to enable first and configure second. PR #120 delivered this lifecycle decision; OLS-4432 aligns component specifications and delivery contracts without claiming runtime completion.
 
 ## Goals and boundaries
 
@@ -23,7 +23,7 @@ The hub remains a fleet-management layer; the existing agentic operator remains 
 
 ### 1. Install OLS
 
-Install the v2 OLS operator bundle and complete normal OLS/LLM-provider configuration. The existing OLS and agentic operator controllers run. The hub APIs and static permissions exist, but the hub controller Deployment does not.
+Install the unified OLS operator bundle and complete normal OLS/LLM-provider configuration. The existing OLS and agentic operator controllers run. The hub APIs and static permissions exist, but the hub controller Deployment does not.
 
 SpokeCluster resources may be staged before HubConfig exists. They cause no provisioning, generated credentials, adapter polling, or fleet workflow execution. No activation-aware admission webhook is required merely to enforce creation order. Existing credential-mode/schema checks remain separate concerns.
 
@@ -82,7 +82,7 @@ Re-enable by creating a new HubConfig with an explicit mode and discovery scope.
 |---|---|---|
 | HubConfig/SpokeCluster CRDs, CSV owned-CRD entries | OLM/bundle; source is lightspeed-hub | OLS installation |
 | Hub ServiceAccount, ClusterRoles/ClusterRoleBindings, required namespace Roles/RoleBindings | OLM/bundle | OLS installation; retained while disabled |
-| Pinned hub and required adapter image references | OLS v2 bundle | Release |
+| Pinned hub and required adapter image references | Unified OLS bundle | Release |
 | Hub image startup argument/environment on OLS operator | CSV OLS deployment configuration | OLS installation |
 | Hub Deployment and supporting runtime configuration, NetworkPolicies, applicable Services/monitoring | OLS operator | Activation through shutdown |
 | HubConfig lifecycle finalizer and controller availability reporting | OLS operator | HubConfig lifecycle |
@@ -92,7 +92,7 @@ Re-enable by creating a new HubConfig with an explicit mode and discovery scope.
 
 The CSV must not list the hub Deployment among its install deployments. OLM starts/upgrades the OLS and agentic operators; the OLS operator reconciles hub operand image/configuration updates and self-heals its runtime resources.
 
-Hub CRDs and RBAC definitions are synced from lightspeed-hub at a pinned revision. Images belong in the v2 related-image set for disconnected mirroring, and must also be passed to their runtime deployer; `relatedImages` alone is not runtime wiring. Honor existing image override conventions.
+Hub CRDs and RBAC definitions are synced from lightspeed-hub at a pinned revision. Images belong in the unified related-image set for disconnected mirroring, and must also be passed to their runtime deployer; `relatedImages` alone is not runtime wiring. Honor existing image override conventions.
 
 Prefer namespace-scoped grants for credentials and adapter Deployments; reserve cluster permissions for cluster-scoped APIs and necessary discovery. Review generated hub RBAC rather than copying every grant unquestioningly. Do not introduce blanket `bind`, `escalate`, or `cluster-admin` to make runtime role creation work. Exact MCE permissions require validation. Hub-cluster RBAC does not grant remote spoke authority; Secret/MCE credential identities supply that authority.
 
@@ -134,7 +134,7 @@ Graceful drain is distinct from [global suspension/per-run cancellation](../../.
 
 Hub-only integration/E2E checks:
 
-1. v2 installation creates APIs/static RBAC but no hub Deployment; v1 contains no new multicluster assets.
+1. Unified installation creates APIs/static RBAC on supported OCP 4.x/5.x but no hub Deployment. Validate completed-version gating, Unknown preservation/retry, and independent workflow opt-in; static API presence is not activation.
 2. Staged registrations cause no provisioning or fleet execution.
 3. HubConfig creation deploys the hub; startup/configuration failures recover after correction.
 4. Explicit modes and MCE default-all/selector behavior include ongoing discovery.
@@ -152,7 +152,15 @@ Real-spoke lifecycle checks:
 13. Hub-side cleanup failures are retried, not hidden by remote best-effort policy.
 14. Generated credentials remain available through run cleanup, then are removed; source credential Secrets remain.
 
-Use the existing [multicluster testing split](../../../.ai/spec/what/multicluster-testing.md): fake-client tests do not replace real cross-cluster lifecycle checks.
+Use the existing [multicluster testing split](../../../.ai/spec/what/multicluster-testing.md): OLS-4639 owns installed-bundle/hub-only checks; OLS-4788 owns real-spoke lifecycle checks. Fake-client/hub-only tests do not prove real cross-cluster drain or cleanup safety.
+
+## Delivery contracts and mode-change refinement [PLANNED]
+
+OLS-4659 owns APIs; OLS-4784 static permissions; OLS-4429/4430 images/pinned CRDs; OLS-4661 protected runtime and final removal. OLS-4660 defines and implements shared tested coordination, with S0 review of admitted-run boundaries, condition writers, identity/freshness, cleanup completion and restart-safe acknowledgement before dependent execution. OLS-4785 implements new-work gates, OLS-4786 individual drain, and OLS-4787 fleet decommission/completion. These are not approved wire identifiers or evidence of implementation; validate configuration/status examples against finalized APIs and S0–S4 evidence.
+
+OLS-4781 refines registry-mode changes: gate/drain newly ineligible registrations with old-source access intact, then clean generated resources and report unmanagement while retaining SpokeCluster CRs/source Secrets. Matching spokes continue and a later matching mode can reprovision retained registrations. Repeated changes, readoption and discovery must reject stale cleanup. Do not replace this with ignore-without-cleanup, fleet replacement, or a requirement to delete all registrations first.
+
+OLS-4782 prerequisite OLSConfig/AgenticOLSConfig deletion is outside this phase, not a blocker or approval of cascading shutdown. General uninstall/recovery, credential migration, selector narrowing, ManagedCluster removal and durable individual MCE exclusion remain separate scope.
 
 ## Implementation gaps and follow-up responsibilities
 
@@ -160,13 +168,13 @@ These are explicit technical follow-ups, not claims of approved wire protocols o
 
 | Follow-up | Responsible component/team | Required outcome |
 |---|---|---|
-| Align OLS-4665 and related packaging/lifecycle tasks | Spike/product maintainers | Replace OLSConfig activation requirement, record this design and team decision status; revisit OLS-4638/4661 assumptions |
-| Validate install-time RBAC and v2 assets | OLS operator packaging maintainers | Supported OLM resource layout, bounded permissions, pinned asset sync, disconnected-image tests |
+| Align component specs (OLS-4432) | Respective repo maintainers | Reference delivered PR #120/#121 decisions and approved task decomposition; retain historical context with explicit superseding corrections |
+| Validate install-time RBAC and unified assets (OLS-4784) | OLS operator packaging maintainers | Supported OLM resource layout, bounded permissions, pinned asset sync, disconnected-image tests |
 | Specify shutdown gate/acknowledgement and run boundary | Hub and agentic operator maintainers | Reviewable API/condition ownership, identity/freshness rules, race/restart tests before production implementation |
 | Implement HubConfig-driven operand reconciliation | OLS operator maintainers | Watches, lifecycle protection, availability/status, upgrades, self-healing, runtime teardown |
 | Replace immediate cleanup with drain-first behavior | Hub, agentic operator, adapter maintainers | Individual and fleet drain, safe credential ordering, admission/execution guards |
-| Complete remote cleanup diagnostics | Hub maintainers | Surface deprovision errors beyond current log-only paths; warn before deleting CRs |
+| Verify/extend remote cleanup diagnostics | Hub maintainers | Reuse delivered OLS-4158 error/Event propagation; cover drain/decommission warnings before CR deletion and remaining diagnostic gaps |
 | Align child specs | Respective repo maintainers | Replace Helm delivery and immediate HubConfig unmanage assumptions; document MCE/default-all support and workflow guards |
 | Define durable individual MCE exclusion separately | Hub maintainers | Avoid promising permanent removal by deleting an auto-discovered registration |
 
-Current local code deletes spoke credentials directly during decommission without checking active workflows. The child hub spec also describes preserving SpokeCluster CRs on HubConfig deletion; this planned design deliberately replaces that behavior with fleet decommissioning. The current local reconciler supports Secret registration and rejects unsupported modes; this document's MCE journey is a target requirement, not evidence that MCE discovery is shipped.
+Implementation inventory must distinguish checkout age from delivered upstream work. Upstream `internal/controller/spokecluster_controller.go` still calls cleanup directly on deletion/unmanagement without shared drain; this is the ordering to replace. OLS-4158 is closed and upstream propagates Deprovision/DeprovisionAdapter errors into cleanup warnings; do not describe all diagnostics as missing because an older checkout retains an obsolete follow-up comment. OLS-4263/4264 image build/release work is closed; bundle inclusion/runtime propagation is separate. OLS-4283 gone-spoke run-deletion fallback is closed and must be reused/verified, not treated as a substitute for drain. MCE discovery (OLS-3954) remains a target requirement rather than assumed shipped support.

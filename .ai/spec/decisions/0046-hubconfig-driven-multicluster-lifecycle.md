@@ -1,6 +1,6 @@
 # 0046: HubConfig-Driven Multicluster Lifecycle
 
-**Status:** Accepted in design discussion; implementation planned (OLS-4665). Broader team review and Jira requirement alignment remain necessary.
+**Status:** Accepted lifecycle design, delivered by PR #120 (OLS-4665); implementation planned. Packaging aligned with PR #121 / ADR 0042 through OLS-4432. Exact shared interfaces and OLM permission packaging still require validation.
 **Date:** 2026-10-29
 **Applies to:** lightspeed-operator, lightspeed-hub, lightspeed-agentic-operator, lightspeed-agentic-alerts-adapter
 
@@ -10,7 +10,7 @@ Multicluster must be explicitly enabled without running a hub controller before 
 
 ## Decision
 
-- The OCP 5.0+ v2 bundle installs hub CRDs, image references, ServiceAccount, and static roles/bindings. OLM/bundle owns those permissions and retains them while multicluster is inactive.
+- The unified OLS bundle installs hub CRDs, image references, ServiceAccount, and static roles/bindings on supported OCP 4.x and 5.x installations. OLM/bundle solely owns those permissions and retains them while multicluster is inactive. [ADR 0042](0042-unified-olm-bundle-runtime-gating.md) supersedes version-split packaging: OCP 5.0+ is a runtime capability boundary, not a bundle selector. HubConfig does not bypass platform safety or independent, unsuspended AgenticOLSConfig workflow opt-in; Unknown is not unsupported or cleanup intent.
 - Do not add the hub as a CSV-managed Deployment. The always-running OLS operator watches HubConfig and deploys/reconciles the hub only when needed for activation or protected shutdown.
 - Creating the singleton HubConfig explicitly selects registration mode and activates the hub. No OLSConfig activation property is introduced.
 - Secret-mode registrations can be staged before activation but remain inactive. MCE mode discovers all managed clusters by default, with an optional selector limiting ongoing discovery.
@@ -33,4 +33,4 @@ The [design spec](../../../docs/superpowers/specs/2026-10-29-OLS-4665-on-demand-
 
 The OLS operator takes responsibility for hub operand upgrades, self-healing, and lifecycle protection. HubConfig deletion is a destructive fleet operation and must be documented accordingly. The workflow gate spans multiple controllers and must survive crashes, races, and deletion during startup. Static installation permissions remain without a hub pod. Staged registrations do not require activation-aware creation admission.
 
-This amends [ADR 0028](0028-multicluster-architecture.md) for activation/delivery/decommissioning, without changing its hub-managed execution model. It does not replace [ADR 0040](0040-agentic-run-termination.md): graceful fleet draining is not global hard suspension. Existing child specs and Jira wording need alignment; behavior remains planned until implemented.
+This amends [ADR 0028](0028-multicluster-architecture.md) for activation/delivery/decommissioning, without changing its hub-managed execution model. It does not replace [ADR 0040](0040-agentic-run-termination.md): graceful fleet draining is not global hard suspension. OLS-4432 aligns the parent and child specifications; behavior remains planned until implemented. Registry-mode changes separately follow OLS-4781: drain affected registrations before unmanagement cleanup, retaining registration CRs and source Secrets. Prerequisite configuration deletion (OLS-4782), durable individual MCE exclusion, and selector/removal policy are outside this phase.
