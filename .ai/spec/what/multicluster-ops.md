@@ -10,18 +10,44 @@ Cross-repo specification for fleet-scale agentic operations. A central hub clust
 
 The [approved discussion design](../../../docs/superpowers/specs/2026-10-29-OLS-4665-on-demand-multicluster-design.md) and [ADR 0046](../decisions/0046-hubconfig-driven-multicluster-lifecycle.md) define the planned delivery/lifecycle contract:
 
-- OLS v2 installs hub APIs and static ServiceAccount/RBAC but no hub Deployment. The OLS operator deploys and lifecycle-manages the hub when the singleton HubConfig is created; no OLSConfig activation property is used.
+- The unified OLS bundle installs hub APIs and static ServiceAccount/RBAC on supported OCP 4.x and 5.x clusters, but no hub Deployment. The OLS operator deploys and lifecycle-manages the hub when the singleton HubConfig is created; no OLSConfig activation property is used.
 - HubConfig explicitly selects Secret registration or MCE discovery. MCE defaults to ongoing discovery of all managed clusters, optionally restricted by a selector. SpokeCluster resources may be staged before activation but remain inactive.
 - HubConfig deletion stops new fleet work, drains existing workflows, decommissions registrations, deletes generated credentials, and removes hub runtime resources. Approval waits block drain until completed or explicitly cancelled. Individual spoke deletion also drains before credential cleanup.
 - Unreachable-spoke decommissioning is best-effort only after draining, with cleanup warnings. Preserve administrator credential Secrets and install-time RBAC. Re-enable requires a new HubConfig; single-cluster work is unaffected.
 
-This planned contract supersedes immediate unmanage/preserve-registration behavior on HubConfig deletion in the child hub spec. It also replaces OLS-4665's currently written OLSConfig activation requirement; ticket/team alignment and technical protocol validation remain follow-ups, not completed implementation.
+This planned contract supersedes immediate unmanage/preserve-registration behavior on HubConfig deletion and the historical OLSConfig activation proposal. PR #120 delivered the lifecycle decision; PR #121 / [ADR 0042](../decisions/0042-unified-olm-bundle-runtime-gating.md) establishes unified packaging. Runtime capability still requires completed OCP 5.0+; workflows independently require an unsuspended AgenticOLSConfig. Unknown platform state must not become unsupported status or implicit cleanup intent.
+
+### Shared interfaces and delivery ownership [PLANNED: OLS-4659, OLS-4660]
+
+Before execution slices depend on them, S0 must settle the admitted-run boundary (including Pending and approval waits), condition writers, identity/freshness, cleanup-completion evidence, restart behavior, and shutdown acknowledgement. OLS owns availability conditions and runtime teardown; hub owns fleet/drain/decommission progress; agentic operator owns workflow gating and per-run cleanup; adapters suppress polling/new work. Use conflict-safe status writes. These are required interface properties, not finalized condition names or wire APIs.
+
+| Slice | Owner ticket |
+|---|---|
+| API/status contracts | OLS-4659 |
+| Unified images / pinned hub CRDs | OLS-4429 / OLS-4430 |
+| Sole install-time static permission ownership | OLS-4784 |
+| Hub runtime protection, reconciliation and final removal | OLS-4661 |
+| Shared tested drain/gate/acknowledgement coordination | OLS-4660 |
+| Adapter/manual new-work gating | OLS-4785 |
+| Individual-spoke drain/cleanup | OLS-4786 |
+| Fleet decommissioning/completion | OLS-4787 |
+| Hub-only / real-spoke validation | OLS-4639 / OLS-4788 |
+
+Gate manual submissions and controller races as well as adapter events. Previously admitted runs retain all remaining phases and required credentials until credential-consuming cleanup finishes; terminal phase alone is insufficient acknowledgement. Approval waits remain blockers without automatic cancellation or a drain deadline. Completion must identify the relevant object incarnation and reject stale evidence. Graceful drain is not global suspension; existing [cancellation/hard-stop semantics](agentic-run-termination.md) remain unchanged.
+
+### Mode changes, recovery, and scope [PLANNED: OLS-4781]
+
+A registry-mode change gates and drains only registrations made ineligible, retaining old-source access until consumers finish. Then unmanage with existing cleanup semantics: remove generated credentials/owned spoke resources, but retain SpokeCluster CRs and source Secrets. Matching spokes continue; returning to a matching supported mode permits reprovisioning. Repeated mode changes, readoption, restarts, and MCE discovery must not apply stale cleanup. This is not fleet deletion or an ignore-without-cleanup policy.
+
+HubConfig deletion is irreversible; edits to a terminating object do not cancel shutdown. Fleet deletion includes staged registrations and preserves source Secrets, static permissions, and workflow/result history (without changing ordinary retention policies). Re-enable needs a fresh HubConfig and new registration/discovery. GitOps must stop reapplying deleted fleet objects when disablement is intended. Report incomplete remote cleanup in logs/Warning Events before deletion; Events expire and deleted status is not a durable report.
+
+Durable individual MCE exclusion is separate: eligible clusters may be rediscovered. Prerequisite OLSConfig/AgenticOLSConfig deletion (OLS-4782), general uninstall/recovery, selector narrowing and ManagedCluster-removal policy are outside this phase, not newly approved cascade behavior or blockers.
 
 ## Repos Involved
 
 | Repo | Role |
 |---|---|
-| lightspeed-operator | [PLANNED: OLS-4665] v2 hub assets/static RBAC; HubConfig-driven hub operand deployment and protected shutdown |
+| lightspeed-operator | [PLANNED: OLS-4784, OLS-4661] unified hub assets/static RBAC; HubConfig-driven hub operand deployment and protected shutdown |
 | lightspeed-hub | Hub operator: SpokeCluster CRs, credential broker, adapter orchestrator, spoke watcher |
 | lightspeed-hub-ui | Hub console: fleet dashboard, spoke management, approval UI |
 | lightspeed-agentic-operator | AgenticRun reconciliation, `spec.targetCluster` support, ephemeral SA lifecycle on spoke |
