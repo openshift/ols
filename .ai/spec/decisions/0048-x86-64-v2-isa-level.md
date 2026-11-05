@@ -16,13 +16,13 @@ RCA: the operator was built with a UBI10-based go-toolkit. RHEL 10's baseline is
 
 The clean error message came from **glibc's dynamic loader (`ld.so`)**, which reads the `GNU_PROPERTY_X86_ISA_1_NEEDED` ELF note (`.note.gnu.property`, per the x86-64 psABI feature levels v1–v4) and refuses to run a binary whose declared ISA level exceeds the CPU. The Linux kernel itself does not enforce the ISA bits (it only acts on CET properties in the same note) — for dynamically linked binaries, ld.so is the enforcement point.
 
-The FIPS migration (decision [0047](0047-native-go-fips.md)) changed this enforcement model: pure-Go builds (`CGO_ENABLED=0`, Go's internal linker) are **statically linked, so ld.so never runs**. Go's internal linker also does not emit the `GNU_PROPERTY_X86_ISA_1_NEEDED` note at any `GOAMD64` level. Consequences:
+The FIPS migration (decision [0047](0047-native-go-fips.md)) changed the enforcement mechanics: pure-Go builds (`CGO_ENABLED=0`, Go's internal linker) are statically linked, so ld.so never runs, and Go's internal linker does not emit the `GNU_PROPERTY_X86_ISA_1_NEEDED` note at any `GOAMD64` level. However, Go's runtime performs its **own startup check**: `rt0` (runtime/asm_amd64.s) compares CPUID against the compiled `GOAMD64` level before any user code runs and aborts with `This program can only be run on AMD64 processors with vN microarchitecture support` on an insufficient CPU. Consequences:
 
-| | CGo / gcc-linked (pre-0044) | Pure Go / static (post-0044) |
+| | CGo / gcc-linked | Pure Go / static |
 |---|---|---|
-| Toolchain defaults to v3 | binary marked v3 via ELF note | v3 codegen, **no ELF note** |
-| Runtime on v2 CPU | clean ld.so error (OLS-2703 behavior) | **raw SIGILL** at first v3 instruction |
-| Runtime enforcement | glibc `ld.so` | none |
+| Toolchain defaults to v3 | binary marked v3 via ELF note | v3 codegen, no ELF note |
+| Runtime on v2 CPU | clean ld.so error (OLS-2703 behavior) | clean Go runtime fatal error (microarchitecture message) |
+| Runtime enforcement | glibc `ld.so` (ELF note) | Go runtime `rt0` (compiled `GOAMD64` level) |
 
 ## Decision
 
@@ -33,17 +33,17 @@ Every Go binary the OLS project ships is verified at image build time to target 
 
 Additionally, pure-Go builds pin **`GOAMD64=v2` explicitly** in the build invocation. This closes the OLS-2703 footgun at the source: a toolchain whose default baseline exceeds v2 (e.g. a future UBI10 go-toolset) would otherwise silently raise the codegen level.
 
-The check runs in the image builder stage of every Go component's Dockerfile/Containerfile (no-op on non-amd64 via `main_other.go`). It replaces the runtime enforcement ld.so provided for dynamically linked binaries: with statically linked pure-Go binaries, a build-time failure in CI is the only thing standing between a toolchain default and a customer's pod crashing with SIGILL.
+The check runs in the image builder stage of every Go component's Dockerfile/Containerfile (non-x86-64 target ELF binaries pass — the checker dispatches on the target's ELF machine type). Both runtime enforcement points produce clean errors rather than SIGILL, so the build-time check's value is **shift-left**: a toolchain default that raises the ISA level fails in CI with clear attribution instead of failing at pod startup on a customer cluster — OLS-2703 was discovered by a customer precisely because the failure only surfaced at runtime. The `GOAMD64=v2` pin additionally prevents the failure from occurring at all. The checker also covers the mixed CGo case where the GNU property note (aggregated from the C objects) stays at baseline while the Go code was compiled at a raised `GOAMD64` level.
 
 ## Alternatives Considered
 
-- **Rely on ld.so as before** — rejected: pure-Go static binaries never execute ld.so; there is no runtime check
+- **Rely on runtime checks alone (ld.so / Go rt0)** — rejected: both produce clean errors, but only at pod startup on customer clusters; OLS-2703 showed toolchain defaults surface exactly there
 - **External linking (`-linkmode external`) to get the ELF note** — rejected: requires gcc at link time and loses internal-linker properties, to obtain a note that is still only tool-enforced
 - **Instruction-level disassembly scan** — rejected: fragile and unnecessary; the realistic risk is toolchain defaults (OLS-2703), which the declared-baseline checks catch
 
 ## Consequences
 
-- All Go components run `check-isa-level` in CI image builds; a v3/v4 baseline fails the build instead of failing a customer cluster
+- All Go components run `check-isa-level` in CI image builds; a v3/v4 baseline fails the build instead of failing a customer cluster at pod startup (where Go's rt0 would abort it, or ld.so for CGo binaries)
 - New Go repos/components must include `cmd/check-isa-level` (copy from lightspeed-operator), pin `GOAMD64=v2`, and run the check in the builder stage
 - Toolchain or builder-image changes (e.g. UBI10 go-toolset) that raise the default ISA level are caught in CI
 - The build-info tier verifies the *declared codegen baseline* (`GOAMD64`), not emitted instructions; hand-written assembly using v3+ without markers would not be caught — accepted risk, no hand-written assembly exists in these repos
