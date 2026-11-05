@@ -192,3 +192,5 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Multicluster operations | `what/multicluster-ops.md` | hub, hub-ui, agentic-operator, alerts-adapter |
 | Alerts-adapter multicluster support | `what/alerts-adapter-multicluster.md` | alerts-adapter, hub, operator |
 | Multicluster testing | `what/multicluster-testing.md` | hub, agentic-operator, alerts-adapter, hub-ui |
+| FIPS compliance (native Go FIPS 140-3) | `decisions/0047-native-go-fips.md` | operator, agentic-operator, hub, otel-collector, alerts-adapter, rag-content |
+| x86-64-v2 ISA level guarantee for Go binaries | `decisions/0048-x86-64-v2-isa-level.md` | operator, agentic-operator, hub, otel-collector, alerts-adapter, rag-content |

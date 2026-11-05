@@ -127,3 +127,10 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0046](0046-hubconfig-driven-multicluster-lifecycle.md) | HubConfig activates an OLS-managed hub operand; install-time RBAC, drain-before-decommission shutdown | operator, hub, agentic-operator, alerts-adapter |
+
+### FIPS Compliance (2026-11)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0047](0047-native-go-fips.md) | Native Go FIPS 140-3 provider (`GOFIPS140=certified`, `//go:debug fips140=on`, ubi9-micro); byok-go keeps non-crypto CGo | operator, agentic-operator, hub, collector, alerts-adapter, rag-content |
+| [0048](0048-x86-64-v2-isa-level.md) | Build-time x86-64-v2 ISA verification for all Go binaries (`check-isa-level`, `GOAMD64=v2`); replaces ld.so enforcement lost to static linking | operator, agentic-operator, hub, collector, alerts-adapter, rag-content |
