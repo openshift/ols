@@ -127,3 +127,9 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0046](0046-hubconfig-driven-multicluster-lifecycle.md) | HubConfig activates an OLS-managed hub operand; install-time RBAC, drain-before-decommission shutdown | operator, hub, agentic-operator, alerts-adapter |
+
+### Outbound Request Audit (2026-11)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0047](0047-metadata-only-outbound-request-audit.md) | [PROPOSED: OLS-4192] Separate metadata-only Python request records; subprocess network observation deferred to OLS-4848 | service, agentic-sandbox |

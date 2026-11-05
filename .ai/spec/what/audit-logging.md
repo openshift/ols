@@ -8,6 +8,10 @@ The sandbox instrumentation schema URL is `https://opentelemetry.io/schemas/1.41
 
 [PARTIALLY IMPLEMENTED: OLS-4434] All implemented sandbox routes, including Vertex Gemini and Azure API-key/Entra, use shared DeepAgents/LangChain generation capture. The Gemini ADK and OpenAI Agents runtime adapters/hooks are removed; Vertex/OpenAI is unsupported and out of scope, not deferred; [Agentic runs](agentic-runs.md#vertexopenai-support-exclusion) defines required sandbox/operator removal, not a completed-removal claim. Current producer descriptions below do not assert live parity, downstream compatibility approval, or completed legacy dependency cleanup. Historical `generate_content`/ADK evidence remains governed by its producer contract and the collection compatibility/versioning gate.
 
+## Separate Metadata-Only Outbound Records [PLANNED: OLS-4192]
+
+[Outbound request audit](outbound-request-audit.md) defines a separate, allowlisted JSON stdout stream for Python application/SDK transport attempts. It is a narrow exception to span-only/single-emission wording for that record type, not a second content transcript. Existing full-fidelity compliance evidence, user/approval identities, exporters, and product collection remain unchanged. Never copy their payloads or identities into the outbound records. Subprocess connection observation is excluded and tracked separately in OLS-4848. [ADR 0047](../decisions/0047-metadata-only-outbound-request-audit.md) records this boundary.
+
 ## Requirements & Principles
 
 1. **Single emission, multiple destinations.** Sandbox agent, inference, and tool content is recorded on standard GenAI span attributes, not additional GenAI span events. When compliance audit is enabled, stdout OTLP JSON and (when an OTLP endpoint exists) templog records are derived views of those completed source spans. A configured trace endpoint independently receives the unmodified source spans; application developer diagnostics do not create another product transcript. Agentic product collection may consume the same trace signal under the independent contract in `agentic-data-collection.md`.

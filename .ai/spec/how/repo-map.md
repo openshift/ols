@@ -21,6 +21,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Prompt templates | lightspeed-service | `what/prompts.md` |
 | REST API endpoints | lightspeed-service | `what/api.md` |
 | Observability (metrics, logging) | lightspeed-service | `what/observability.md` |
+| Metadata-only Python outbound request audit | lightspeed-service | [PLANNED: OLS-4192] Parent `what/outbound-request-audit.md`; child `what/outbound-request-audit.md` |
 | Security (TLS, redaction, input validation) | lightspeed-service | `what/security.md` |
 | Configuration model | lightspeed-service | `what/config.md`, `how/config.md` |
 
@@ -105,6 +106,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Azure OpenAI Entra ID / API-key credential resolution and shared DeepAgents integration | lightspeed-agentic-sandbox | [OLS-3050, OLS-4470, OLS-4471] `what/configuration.md` (rule 9a), `what/provider-contract.md` (native Azure integration and SDK-delegated credentials), `how/provider-architecture.md`; validation in agentic-operator `what/crd-api.md` (rule 21a); parent ADR `decisions/0041-sandbox-sdk-delegated-tokens.md` |
 | AWS Bedrock static-key / STS assume-role credential resolution | lightspeed-agentic-sandbox | [OLS-4092] `what/configuration.md` (rule 9b), `what/provider-contract.md` (rule 39), `how/provider-architecture.md`; validation in agentic-operator `what/crd-api.md` (rule 21b); ADR `decisions/0041-sandbox-sdk-delegated-tokens.md`. Anthropic-on-Bedrock model path unchanged. |
 | Health probes | lightspeed-agentic-sandbox | `what/health-probes.md` |
+| Metadata-only Python outbound request audit; subprocess connections excluded | lightspeed-agentic-sandbox | [PLANNED: OLS-4192] Parent `what/outbound-request-audit.md`; child `what/outbound-request-audit.md`; network observation is separate OLS-4848 |
 | Provider architecture (adapters) | lightspeed-agentic-sandbox | `how/provider-architecture.md` |
 | Single DeepAgents harness for all implemented routes; legacy runtime adapters removed | lightspeed-agentic-sandbox | [PARTIALLY IMPLEMENTED: OLS-4434] child `what/provider-contract.md` rules 50–67, `what/configuration.md`, `how/provider-architecture.md`, `decisions/0003-single-deepagents-harness.md`; Azure API-key/Entra use the shared harness; Vertex/OpenAI is unsupported and out of scope, with required removal tracked by the parent support boundary below. Dependency cleanup and route-specific acceptance remain separate; parent `what/tool-result-inspection.md`, `what/agentic-data-collection.md` retain shared safety/evidence and telemetry compatibility authority |
 | Vertex/OpenAI exclusion and required support removal | lightspeed-agentic-sandbox, lightspeed-agentic-operator | Parent [support boundary](../what/agentic-runs.md#vertexopenai-support-exclusion); [PLANNED] remove sandbox configuration/routing scaffolding and operator Vertex-specific OpenAI API/schema/validation/wiring, with negative tests. Not deferred implementation. Child sandbox `what/configuration.md`, `what/provider-contract.md`, `how/provider-architecture.md`; operator `what/crd-api.md`, `what/sandbox-execution.md`. Other Vertex and OpenAI routes remain supported. |
@@ -185,6 +187,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |
 | Tool-result prompt-injection inspection | `what/tool-result-inspection.md` | service, operator, agentic-operator, agentic-sandbox |
 | Compliance audit logging | `what/audit-logging.md` | agentic-operator, agentic-sandbox, service, operator, agentic-console |
+| Metadata-only Python outbound request audit | [PLANNED: OLS-4192] `what/outbound-request-audit.md` | service, agentic-sandbox; existing operator handoffs unchanged |
 | Provider-egress TLS and CA handoff | `docs/superpowers/specs/2026-09-20-provider-egress-tls.md` | operator (`what/tls.md`), agentic-operator (`what/sandbox-execution.md`, `docs/inter-operator-handoff-design.md`), agentic-sandbox (`what/configuration.md`) |
 | Temporary audit log storage | `what/templog.md` | lightspeed-otel-collector, operator, agentic-operator, agentic-sandbox |
 | Agentic product data collection | [PLANNED: OLS-4246] [canonical collection contract](../what/agentic-data-collection.md) (target first stage: local FileExporter trace-batch JSONL; later: rotated-file Dataverse OTel consumer and operator wiring) | operator, agentic-operator, agentic-sandbox, otel-collector, lightspeed-core/lightspeed-to-dataverse-exporter |

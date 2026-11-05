@@ -11,6 +11,8 @@ Compliance regulations (EU AI Act) require complete audit trails of AI system be
 
 Audit logging uses OpenTelemetry aligned with GenAI Semantic Conventions v1.41, with single-emission dual-destination: each audit datum is recorded once as an OTel span/event, with two exporters (stdout OTLP JSON and OTLP to tracing backend) producing two views. Stdout is the compliance record with no truncation. Full fidelity is mandatory — every LLM turn, tool call, and thinking block is recorded. No audit redaction is performed (redaction is an input concern, not a logging concern). Console plugins do not emit audit events. The design targets EU AI Act compliance.
 
+[PLANNED: OLS-4192] [ADR 0047](0047-metadata-only-outbound-request-audit.md) introduces a narrow exception to the span-only/custom-format and developer-only-logger restrictions for a separate metadata-only Python outbound-request record stream. The full-fidelity compliance records described here remain unchanged; they MUST NOT be copied into that stream.
+
 ## Alternatives Considered
 
 - **Custom logging format** — rejected because it is non-standard with no ecosystem tooling

@@ -37,6 +37,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Understand the agentic security model | `what/agentic-security.md` |
 | Understand how MCP tool-call RBAC is derived | `what/mcp-tool-rbac.md` |
 | Understand the compliance audit logging system | `what/audit-logging.md` |
+| Understand metadata-only Python outbound request auditing | [PLANNED: OLS-4192] `what/outbound-request-audit.md` |
 | Understand the temporary audit log pipeline | `what/templog.md` |
 | Understand Agentic product data collection | `what/agentic-data-collection.md` |
 | Understand multicluster operations | `what/multicluster-ops.md` |
