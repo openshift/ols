@@ -16,8 +16,34 @@ All OLS-built Go components use Go's native FIPS 140-3 crypto provider:
 
 - **Build:** `CGO_ENABLED=0 GOFIPS140=certified` (certified FIPS module selected at build time). Exception: `lightspeed-rag-content` (byok-go) keeps `CGO_ENABLED=1` because its CGo usage is faiss/onnxruntime — non-crypto ML libraries; `GOFIPS140` governs only the Go crypto packages and composes with CGo.
 - **Runtime default:** `//go:debug fips140=on` directive in the `main` package — FIPS-approved crypto always active, matching the previous `strictfipsruntime` behavior. **`fips140=on`, not `fips140=auto`:** upstream Go's `fips140` GODEBUG accepts only `on`/`off`/`only`; `auto` is an RH go-toolset extension that panics at runtime on upstream toolchains.
-- **Startup assertion:** each component checks `/proc/sys/crypto/fips_enabled` and aborts if the host is in FIPS mode but the FIPS module is not active (i.e. an explicit `GODEBUG=fips140=off` override).
+- **Startup assertion:** each component checks `/proc/sys/crypto/fips_enabled` and aborts if the host is in FIPS mode but the FIPS module is not active (i.e. an explicit `GODEBUG=fips140=off` override). See "Startup assertion design" below.
 - **Base image:** runtime stage is ubi9-micro (no OpenSSL). Pure-Go binaries need only glibc. No component relies on system CA roots for its *own* in-cluster TLS — TLS egress uses mounted volume CAs (kube API service-account CA, config-provided CAs). Exception: the **hub** and the **agentic-operator** accept spoke kubeconfigs without inline `certificate-authority-data`; those connections verify spoke API servers against **system trust roots**, so their images carry the public CA bundle (PEM copied from the builder stage — pure data, parsed natively by Go, no OpenSSL). The otel-collector's egress is in-cluster PostgreSQL (`sslmode=require`) and local file export.
+
+### Startup assertion design
+
+`fips140` is a **runtime** GODEBUG setting: `//go:debug fips140=on` only sets the binary's *default*, and an explicit `GODEBUG=fips140=off` environment override still disables the FIPS module at runtime. The startup assertion exists to close that hole — without it, a binary could run on a FIPS-enabled cluster with non-approved crypto and silently break the cluster's compliance claim.
+
+The implementation is host-aware and unconditional (no build tag):
+
+| Host FIPS state | Module on | Action |
+| --- | --- | --- |
+| enabled | yes | start |
+| enabled | no | **refuse** — FIPS host would run non-approved crypto |
+| unreadable | no | **refuse** — fail closed; a FIPS host cannot be ruled out |
+| unreadable | yes | start, log the read failure |
+| not enabled | yes | start (normal case on non-FIPS clusters) |
+| not enabled | no | start — non-FIPS host does not require FIPS crypto |
+
+A missing `/proc/sys/crypto/fips_enabled` means the kernel has no FIPS support (host treated as non-FIPS, no error); only unexpected read failures or unexpected file content trigger the fail-closed path.
+
+This deliberately deviates from the [managed-upgrade-operator boilerplate](https://github.com/openshift/managed-upgrade-operator/blob/main/boilerplate/openshift/golang-osd-operator/fips.go.tmplt) referenced by OLS-4668, which gates the check behind a `fips_enabled` build tag and `panic`s whenever the module is off — regardless of host state. Reasons for the deviation:
+
+- **No build tag:** the check is always compiled in. A tag-gated check protects only builds that remember the tag; OLS ships one build per component, and that build must be safe on FIPS clusters unconditionally.
+- **Host-aware refusal instead of unconditional panic:** refusing only when the host requires (or may require) FIPS preserves the ability to debug on non-FIPS clusters with `GODEBUG=fips140=off`, while the only dangerous combination — FIPS host + non-approved crypto — can never run.
+- **Fail closed on unreadable host state:** the MUO template has no notion of host state; if `/proc/sys/crypto/fips_enabled` cannot be read (permissions, unexpected content), OLS refuses to start rather than assume the host is non-FIPS.
+- **`os.Exit(1)` with a structured log instead of `panic`:** the operator frameworks in use log through `logr`/`slog`; a panic in `init()` produces an undecorated stack trace in pod logs. Exiting with a logged, actionable message ("check the GODEBUG=fips140 setting") matches the components' normal failure reporting.
+
+The decision logic is a pure function (`evaluateFIPSState` / `fips.Evaluate`) so the startup decision is unit-testable without a FIPS-enabled host or process-wide GODEBUG changes; in `lightspeed-rag-content` it lives in `internal/fips` (outside the CGo-importing `main`) so it runs under the repo's pure-Go test target.
 
 ### Component status
 
@@ -38,6 +64,7 @@ All OLS-built Go components use Go's native FIPS 140-3 crypto provider:
 - **`//go:debug fips140=auto`** — rejected: not valid upstream Go; runtime panic on non-RH toolchains
 - **`GOEXPERIMENT=boringcrypto`** — rejected: legacy path, conflicts with `GOFIPS140`, same check-payload endgame
 - **`GODEBUG=fips140=...` via container ENV only** — rejected: check-payload validates the compiled-in `DefaultGODEBUG`; the `//go:debug` directive is the compliant mechanism
+- **managed-upgrade-operator startup-check boilerplate** (`fips_enabled` build tag + unconditional `panic` when the module is off) — rejected: tag-gating leaves untagged builds unprotected, and an unconditional panic over-constrains non-FIPS clusters where running with the module off is harmless (see "Startup assertion design")
 
 ## Consequences
 
