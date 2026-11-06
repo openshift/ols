@@ -33,6 +33,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Understand how the operator deploys everything | `what/deployment-lifecycle.md` |
 | Understand how a user query is processed | `what/query-pipeline.md` |
 | Understand tool-result prompt-injection inspection | `what/tool-result-inspection.md` |
+| Design tool-output secret/PII redaction for Classic and Agentic | [PLANNED: OLS-3939] `what/tool-output-redaction.md`; `what/tool-output-redaction-chat.md`; `what/tool-output-redaction-agentic.md` |
 | Understand operand network policy scope and egress exceptions | `what/operand-network-policies.md` |
 | Understand the agentic security model | `what/agentic-security.md` |
 | Understand how MCP tool-call RBAC is derived | `what/mcp-tool-rbac.md` |

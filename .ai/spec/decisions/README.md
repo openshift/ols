@@ -127,3 +127,9 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0046](0046-hubconfig-driven-multicluster-lifecycle.md) | HubConfig activates an OLS-managed hub operand; install-time RBAC, drain-before-decommission shutdown | operator, hub, agentic-operator, alerts-adapter |
+
+### Tool-Output Redaction (2026-11)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0047](0047-tool-output-redaction-policy.md) | [PLANNED: OLS-3939] One policy contract with separate Classic and Agentic runtimes, sanitized UI replies and raw source audit evidence | service, console, operator, agentic-operator, agentic-sandbox, agentic-console |
