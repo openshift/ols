@@ -44,6 +44,8 @@ AI agents. Content is optimized for precision and machine consumption.
 | Configure multicluster agent baseline reader roles | [PLANNED: OLS-4632] `what/multicluster-agent-rbac.md` |
 | Understand alerts-adapter multicluster support | `what/alerts-adapter-multicluster.md` |
 | Understand how multicluster is tested | `what/multicluster-testing.md` |
+| Understand the FIPS compliance model for Go components | `decisions/0047-native-go-fips.md` |
+| Understand the x86-64-v2 ISA guarantee for Go binaries | `decisions/0048-x86-64-v2-isa-level.md` |
 | Check cross-repo rules | `constraints.md` |
 | Browse architectural decisions | `decisions/README.md` |
 
