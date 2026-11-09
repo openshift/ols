@@ -10,6 +10,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | LLM provider support (OpenAI, Azure, WatsonX, RHEL AI) | lightspeed-service | `what/llm-providers.md`, `how/llm-providers.md` |
 | MCP tool integration & tool calling loop | lightspeed-service | `what/tools.md`, `how/tools.md` |
 | Tool-result prompt-injection inspection | lightspeed-service | Parent `what/tool-result-inspection.md`; child `what/tools.md`, `how/tools.md` |
+| Tool-output secret/PII redaction and sanitized chat SSE | lightspeed-service, lightspeed-console | [PLANNED: OLS-3939] Parent `what/tool-output-redaction.md`, `what/tool-output-redaction-chat.md`; child specs align during implementation |
 | MCP apps (UI resources, tool proxy) | lightspeed-service | `what/mcp-apps.md` |
 | RAG retrieval at query time | lightspeed-service | `what/rag.md` |
 | OKP retrieval (Solr hybrid search) | lightspeed-service | `what/rag.md` |
@@ -102,6 +103,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | LLM provider contract (Claude, Gemini, OpenAI) | lightspeed-agentic-sandbox | `what/provider-contract.md` |
 | Configuration (env vars, provider selection) | lightspeed-agentic-sandbox | `what/configuration.md` |
 | Tool-result prompt-injection inspection on all implemented DeepAgents routes, including the sandbox-only Azure input-filter policy | lightspeed-agentic-sandbox | Parent `what/tool-result-inspection.md` (Azure exception: rule 44a; controlled diagnostics: rules 99a, 103a); child `what/provider-contract.md`, `what/configuration.md` |
+| Tool-output redaction, native-span boundary and per-reply UI signal | lightspeed-agentic-sandbox, lightspeed-agentic-operator, lightspeed-agentic-console | [PLANNED: OLS-3939] Parent `what/tool-output-redaction.md`, `what/tool-output-redaction-agentic.md`; child specs align during implementation |
 | Azure OpenAI Entra ID / API-key credential resolution and shared DeepAgents integration | lightspeed-agentic-sandbox | [OLS-3050, OLS-4470, OLS-4471] `what/configuration.md` (rule 9a), `what/provider-contract.md` (native Azure integration and SDK-delegated credentials), `how/provider-architecture.md`; validation in agentic-operator `what/crd-api.md` (rule 21a); parent ADR `decisions/0041-sandbox-sdk-delegated-tokens.md` |
 | AWS Bedrock static-key / STS assume-role credential resolution | lightspeed-agentic-sandbox | [OLS-4092] `what/configuration.md` (rule 9b), `what/provider-contract.md` (rule 39), `how/provider-architecture.md`; validation in agentic-operator `what/crd-api.md` (rule 21b); ADR `decisions/0041-sandbox-sdk-delegated-tokens.md`. Anthropic-on-Bedrock model path unchanged. |
 | Health probes | lightspeed-agentic-sandbox | `what/health-probes.md` |
@@ -184,6 +186,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Operand network policies | [PLANNED: OLS-4171; OLS-3943] `what/operand-network-policies.md` | operator, hub (adapter exception), agentic-operator (sandbox exception), agentic-console (request path) |
 | Query pipeline | `what/query-pipeline.md` | console, service, operator, rag-content |
 | Tool-result prompt-injection inspection | `what/tool-result-inspection.md` | service, operator, agentic-operator, agentic-sandbox |
+| Tool-output secret/PII redaction | [PLANNED: OLS-3939] `what/tool-output-redaction.md`; [Classic chat](../what/tool-output-redaction-chat.md); [Agentic](../what/tool-output-redaction-agentic.md) | service, console, operator, agentic-operator, agentic-sandbox, agentic-console |
 | Compliance audit logging | `what/audit-logging.md` | agentic-operator, agentic-sandbox, service, operator, agentic-console |
 | Provider-egress TLS and CA handoff | `docs/superpowers/specs/2026-09-20-provider-egress-tls.md` | operator (`what/tls.md`), agentic-operator (`what/sandbox-execution.md`, `docs/inter-operator-handoff-design.md`), agentic-sandbox (`what/configuration.md`) |
 | Temporary audit log storage | `what/templog.md` | lightspeed-otel-collector, operator, agentic-operator, agentic-sandbox |
