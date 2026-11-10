@@ -112,7 +112,7 @@ Precedence for a non-deleting run:
 2. **Teardown pass.** The operator runs the shared cleanup: `CleanupSuspension(runUID)` on the hub, plus the spoke access cleanup for spoke runs (below). Teardown attempts every operation even when one fails.
 3. **Confirmed within the deadline.** In one status update, the operator writes the `CancelledByUser` outcome, sets `Stopping=False/TeardownComplete`, and clears `status.steps.*.sandbox`.
 4. **Unconfirmed at the deadline.** In one status update, the operator writes the `CancellationFailed` outcome and sets `Stopping=False/TeardownFailed`. It retains the unconfirmed sandbox references.
-5. **After a failed outcome.** Cleanup keeps retrying on requeue and watch events. When it later confirms, the operator clears the sandbox references. The recorded outcome never changes.
+5. **After a failed outcome.** Cleanup keeps retrying on requeue and watch events. When a later pass confirms cleanup, the operator sets `Stopping=False/TeardownComplete` and clears the sandbox references in one status update. The `CancellationFailed` condition and the `Failed` phase never change.
 6. **Nothing to tear down.** `Pending` and `Proposed` runs, or runs with no sandbox workload or access, confirm on the first pass and reach `CancelledByUser` without delay.
 
 ### Spoke confirmation (shared by both sources)
@@ -125,14 +125,24 @@ For a run with `spec.targetCluster`, a stop is confirmed only when both checks p
   - per-run reader ClusterRoleBindings;
   - execution Roles, RoleBindings, ClusterRole, and ClusterRoleBinding.
 
-  Discovery uses both known names and run-UID label inventory across all namespaces (`LabelRun`, `LabelComponent`), matching the hub pass and parent rule 16 (dual discovery). The `rbac-namespaces` annotation is not sufficient on its own: `ensureExecutionRBAC` overwrites it on every execution and never clears it, so after a revision it can miss namespaces.
+  Discovery uses the run's deterministic object names. The operator creates spoke objects only under these names:
+  - `sandboxSAName` for each step, in the spoke namespace;
+  - `perRunCRBName` for each reader binding and step;
+  - `executionRoleName(runUID)` Role and RoleBinding in every namespace listed in the `rbac-namespaces` annotation;
+  - `clusterRoleName(runUID)` ClusterRole and ClusterRoleBinding.
 
-A missing kubeconfig, an unreachable spoke, a read error, or missing spoke `list` permission counts as unconfirmed, never as confirmation. The builder must verify that the standing `spoke-kubeconfig-<cluster>` credential can list and delete these objects cluster-wide on the spoke. If it cannot, that is a hub-provisioner prerequisite, not a reason to weaken discovery.
+  The spoke pass makes no `List` calls. The standing spoke credential has `get` and `delete` on these kinds but no `list` (verified in `lightspeed-hub` `mce_discovery_controller.go`). After each delete, the operator confirms with an authoritative `Get`: `NotFound` means removed.
+
+  **Annotation fix:** `ensureExecutionRBAC` currently overwrites `rbac-namespaces` on every execution, so after a revision it can lose namespaces that still hold execution RBAC. It must instead keep the union of existing and new namespaces, deduplicated and sorted. Then the names alone cover every spoke object the operator creates.
+
+  Hub resources keep dual discovery (status references plus label/owner inventory), as `CleanupSuspension` already does. Name-based discovery applies to spoke access only.
+
+A missing kubeconfig, an unreachable spoke, or any `Get`/`Delete` error other than `NotFound` (including forbidden) counts as unconfirmed, never as confirmation.
 
 Suspension uses the same spoke check. **The run controller is the only component that performs spoke I/O.** The config controller performs no spoke reads. It derives spoke resolution from each run's recorded state:
 
-- A run with a confirmed outcome (`Stopping=False/TeardownComplete`) and cleared sandbox references is resolved.
-- A run with a failed outcome, retained references, or a pending `Stopping` is unresolved. This applies regardless of the run's stop source, so a `CancellationFailed` run with leftover access also keeps `SafeToResume=False` while suspended.
+- A run whose `Stopping` is not `True` and whose sandbox references are cleared is resolved. This includes a run that recorded a failed outcome and later confirmed cleanup (`Stopping=False/TeardownComplete`).
+- A run with retained references or a pending `Stopping` is unresolved. This applies regardless of the run's stop source, so a `CancellationFailed` run with leftover access also keeps `SafeToResume=False` while suspended.
 - `RemoteExecutionEvidence` stops being the resolution signal for runs the shared stop path handles. Its annotation-based evidence never clears today, which would block resumption permanently.
 
 A reachable, cleaned spoke run therefore no longer forces `AdminActivatedWithErrors`. When background cleanup later confirms an unresolved run, `SafeToResume` can become `True`. The `AdminActivatedWithErrors` outcome of that activation stays unchanged.
@@ -183,7 +193,8 @@ Parent rule 25a ("the affected run MAY remain `Stopping`") and its 60 s constant
   - spoke confirmed vs. unreachable;
   - suspension-wins precedence, including takeover of a `Stopping/CancelledByUser` run;
   - outcome finality against late writes;
-  - background cleanup after a failed outcome clearing references without changing the outcome.
+  - background cleanup after a failed outcome flipping `Stopping` to `TeardownComplete` and clearing references without changing the failure condition;
+  - `rbac-namespaces` union across two executions with different namespace sets.
 
 ## Calls made during design (not explicitly decided by the user)
 
@@ -191,7 +202,14 @@ Parent rule 25a ("the affected run MAY remain `Stopping`") and its 60 s constant
 - The cancellation deadline starts at `Stopping` acceptance.
 - `EmergencyStopFailed` console presentation stays unchanged.
 - Suspension takes over a run already `Stopping/CancelledByUser` with no outcome recorded.
-- Spoke discovery uses known names plus run-UID label inventory, not the `rbac-namespaces` annotation alone.
+- A failed outcome that later confirms cleanup flips `Stopping` from `TeardownFailed` to `TeardownComplete` and clears references; the failure condition stays.
 - Only the run controller performs spoke I/O. The config controller derives spoke resolution from recorded run state and stops using `RemoteExecutionEvidence` as the signal.
 - A `CancellationFailed` run with leftover access keeps `SafeToResume=False` during a suspension.
 - An accepted suspension stop is never converted into a cancellation.
+
+## Spoke discovery decision (user, 2026-11-10)
+
+| Option | Tradeoff | Decision |
+|---|---|---|
+| Grant the standing spoke credential `list` (hub change) and use label inventory plus names | Keeps dual discovery on spokes; widens a cross-cluster credential, adds a security-reviewed hub PR, and spoke runs end `Stop failed` until spokes converge. | Rejected. |
+| Name-based discovery plus an `rbac-namespaces` union fix | No new permission or hub change; closes the stale-annotation gap. Spoke objects outside the operator's deterministic names would go unnoticed; the operator creates none today. | **Selected by the user.** |
