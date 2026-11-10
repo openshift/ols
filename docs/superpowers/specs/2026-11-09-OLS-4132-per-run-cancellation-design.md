@@ -141,8 +141,8 @@ A missing kubeconfig, an unreachable spoke, or any `Get`/`Delete` error other th
 
 Suspension uses the same spoke check. **The run controller is the only component that performs spoke I/O.** The config controller performs no spoke reads. It derives spoke resolution from each run's recorded state:
 
-- A run whose `Stopping` is not `True` and whose sandbox references are cleared is resolved. This includes a run that recorded a failed outcome and later confirmed cleanup (`Stopping=False/TeardownComplete`).
-- A run with retained references or a pending `Stopping` is unresolved. This applies regardless of the run's stop source, so a `CancellationFailed` run with leftover access also keeps `SafeToResume=False` while suspended.
+- A run is resolved when its sandbox references are cleared and it has either no `Stopping` condition or `Stopping=False/TeardownComplete`. This includes a run that recorded a failed outcome and later confirmed cleanup.
+- A run with retained references, `Stopping=True`, or `Stopping=False/TeardownFailed` is unresolved, even when its hub references are already clear, because spoke access may still be unconfirmed. This applies regardless of the run's stop source, so a `CancellationFailed` run with leftover access also keeps `SafeToResume=False` while suspended.
 - `RemoteExecutionEvidence` stops being the resolution signal for runs the shared stop path handles. Its annotation-based evidence never clears today, which would block resumption permanently.
 
 A reachable, cleaned spoke run therefore no longer forces `AdminActivatedWithErrors`. When background cleanup later confirms an unresolved run, `SafeToResume` can become `True`. The `AdminActivatedWithErrors` outcome of that activation stays unchanged.
