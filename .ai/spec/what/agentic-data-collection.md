@@ -89,11 +89,11 @@ The producer facts and analytical goals below do not define Collector record cla
 | Execution result | `agenticrun.execution.completed`: Result UID/name, actions-taken count, full ExecutionResult spec/status, action statuses, conditions, and failures |
 | Verification result | `agenticrun.verification.completed`: Result UID/name, check count, full VerificationResult spec/status, check statuses, summary, conditions, and failures |
 | Escalation result | `agenticrun.escalation.completed`: Result UID/name, full EscalationResult spec/status, summary, conditions, and failures |
-| Terminal outcome | `agenticrun.terminal` timestamp, final phase, condition reason, and literal terminal AgenticRun spec/status; cancellation remains `Failed` with reason `CancelledByUser`, while analytics MAY derive a downstream cancellation label |
+| Terminal outcome | `agenticrun.terminal` timestamp, final phase, condition reason, and literal terminal AgenticRun spec/status; confirmed cancellation is `Failed` with reason `CancelledByUser`, an unconfirmed cancellation is `Failed` with reason `CancellationFailed`, and global suspension is `EmergencyStopped` or `Failed` with reason `EmergencyStopFailed`; analytics MAY derive a downstream cancellation label |
 | LLM operation | `chat {model}` source span start/end/native status for current DeepAgents routes, provider, observed requested/response model and input/output/reasoning token counts when available, error attributes, run UID, and phase; historical evidence retains its producer's emitted operation, with compatibility governed by rules 41–42 |
 | Tool operation | `execute_tool {name}` source span start/end/native status, tool name/type, call ID, error attributes, run UID, and phase |
 
-22. [PLANNED: OLS-4246] Expected terminal evidence also covers `Completed / NoActionRequired`, ordinary failure, denial, escalation, and `EmergencyStopped`. Product analytics MUST NOT invent a `Cancelled` product phase or rewrite `Failed / CancelledByUser`.
+22. [PLANNED: OLS-4246] Expected terminal evidence also covers `Completed / NoActionRequired`, ordinary failure, denial, escalation, `EmergencyStopped`, `Failed / CancellationFailed`, and `Failed / EmergencyStopFailed`. Product analytics MUST NOT invent a `Cancelled` product phase or rewrite the recorded `Failed / CancelledByUser` or failed-stop outcome.
 23. Native OTLP carries each selected source span with its attached events. Transport retries can duplicate delivery, so downstream consumers own logical interpretation and deduplication.
 
 ## Native OTLP File Contract
