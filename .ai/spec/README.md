@@ -45,6 +45,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Configure multicluster agent baseline reader roles | [PLANNED: OLS-4632] `what/multicluster-agent-rbac.md` |
 | Understand alerts-adapter multicluster support | `what/alerts-adapter-multicluster.md` |
 | Understand how multicluster is tested | `what/multicluster-testing.md` |
+| Understand the unified configuration surface (root OLSConfig, LLMProvider, Agent, MCPServer) | [PLANNED] `what/configuration-surface.md` |
 | Check cross-repo rules | `constraints.md` |
 | Browse architectural decisions | `decisions/README.md` |
 

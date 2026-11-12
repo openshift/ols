@@ -176,6 +176,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 
 | Feature | Parent Spec | Repos |
 | --- | --- | --- |
+| Unified configuration surface (root OLSConfig sections, LLMProvider models and defaults, MCPServer references, inheritance, admission) | [PLANNED] `what/configuration-surface.md`; ADR `decisions/0048-unified-configuration-surface.md` | operator, agentic-operator, agentic-sandbox, service, hub, agentic-console |
 | Agentic run lifecycle | `what/agentic-runs.md` | alerts-adapter, team-harness event-adapter [PROTOTYPE], agentic-operator, agentic-sandbox, agentic-console |
 | Agentic run termination (per-run cancellation, global hard-stop) | `what/agentic-run-termination.md` | agentic-operator, agentic-console |
 | Terminal AgenticRun retention | [PLANNED: OLS-4280] `what/terminal-run-ttl.md` | operator, agentic-operator, agentic-console (deadline display) |

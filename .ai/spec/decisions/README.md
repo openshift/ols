@@ -133,3 +133,9 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0047](0047-tool-output-redaction-policy.md) | [PLANNED: OLS-3939] One policy contract with separate Classic and Agentic runtimes, sanitized UI replies and raw source audit evidence | service, console, operator, agentic-operator, agentic-sandbox, agentic-console |
+
+### Unified Configuration Surface (2026-11)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0048](0048-unified-configuration-surface.md) | [PLANNED] Root OLSConfig with presence-enabled chat/agentic/hub sections; reusable LLMProvider, Agent and MCPServer resources; replace-not-merge inheritance; protected operator-owned `openshift` MCP server; supersedes the HubConfig activation resource of 0046 | operator, agentic-operator, agentic-sandbox, service, hub, agentic-console |
