@@ -4,7 +4,7 @@ Cross-repo specification for fleet-scale agentic operations. A central hub clust
 
 > **Testing:** how this feature is tested is specified separately in [multicluster-testing.md](multicluster-testing.md).
 >
-> **Baseline RBAC [PLANNED: OLS-4632]:** [multicluster-agent-rbac.md](multicluster-agent-rbac.md) defines fleet defaults, additive spoke reader roles, seed-SA discovery, validation, and dedicated per-step binding cleanup. It supersedes fixed-list reader selection for remote runs; approved execution RBAC is unchanged.
+> **Baseline RBAC [PLANNED: OLS-4632]:** [multicluster-agent-rbac.md](multicluster-agent-rbac.md) defines fleet defaults, additive spoke reader roles, seed-SA discovery, validation, and dedicated per-step binding cleanup. It supersedes fixed-list reader selection for remote runs; approved execution RBAC is unchanged. [PLANNED: OLS-4685] Reader validation has exact-name exceptions for `cluster-reader` and `cluster-monitoring-view`.
 
 ## On-Demand Activation and Shutdown [PLANNED: OLS-4665]
 
@@ -104,7 +104,7 @@ The hub is control plane only. Full agentic stack deployed to spoke. Sandboxes r
 4. **Analysis phase**: Agentic-operator creates a per-step SA (`ls-anl-{run-UID}`) on the spoke via remote kube-api using the standing kubeconfig. Creates dedicated reader ClusterRoleBindings for the SA, copying RoleRefs from the spoke's baseline source bindings without modifying them. Currently the source list is hardcoded to two bindings; [PLANNED: OLS-4632] discover eligible bindings to the spoke seed SA as specified in `multicluster-agent-rbac.md`. Calls TokenRequest API on the spoke for a 24h token. Creates a sandbox kubeconfig Secret on the hub (`ls-sandbox-kubeconfig-{run-name}-analysis`) with spoke API server + ephemeral token + proxy-url (if present). Mounts into sandbox pod.
 5. **Approval gate**: User approves in hub console.
 6. **Execution phase**: Agentic-operator creates a per-step SA (`ls-exe-{run-UID}`) on the spoke. Adds reader access (same as analysis). Additionally creates namespace-scoped Roles + RoleBindings and, when requested, a run-specific ClusterRole + ClusterRoleBinding on the spoke based on the approved option's RBAC requirements. Gets 24h token. Creates execution sandbox kubeconfig Secret. Mounts into sandbox pod.
-7. **Verification phase**: Creates per-step SA (`ls-ver-{run-UID}`) with reader access only (same as analysis). Gets token, creates kubeconfig, mounts into sandbox.
+7. **Verification phase**: Creates per-step SA (`ls-ver-{run-UID}`) with reader access only (same as analysis), with exceptional default cluster roles. Gets token, creates kubeconfig, mounts into sandbox.
 8. Standard agentic lifecycle for each phase (see `agentic-runs.md`). All sandbox operations target the spoke via remote kube-api through the mounted kubeconfig.
 9. On terminal phase (completed, failed, escalated): agentic-operator deletes all per-step SAs and their RoleBindings on the spoke. Deletes dedicated per-step reader ClusterRoleBindings without modifying the baseline source bindings. Deletes sandbox kubeconfig Secrets on the hub (auto-GC via owner reference to AgenticRun). Deletes sandbox pods.
 10. Token TTL (24h) is the safety net if cleanup fails.
@@ -148,10 +148,10 @@ Created by the agentic-operator for each step of an AgenticRun targeting a spoke
 
 | Step | SA name | Access |
 |---|---|---|
-| Analysis | `ls-anl-{run-UID}` | Cluster-wide read (via reader ClusterRoleBindings) |
-| Execution | `ls-exe-{run-UID}` | Cluster-wide read + namespace-scoped write (from approved option RBAC) |
-| Verification | `ls-ver-{run-UID}` | Cluster-wide read (via reader ClusterRoleBindings) |
-| Escalation | `ls-esc-{run-UID}` | Cluster-wide read (via reader ClusterRoleBindings) |
+| Analysis | `ls-anl-{run-UID}` | Cluster-wide read (via reader ClusterRoleBindings), with exceptional default cluster roles |
+| Execution | `ls-exe-{run-UID}` | Cluster-wide read + namespace-scoped write (from approved option RBAC), with exceptional default cluster roles |
+| Verification | `ls-ver-{run-UID}` | Cluster-wide read (via reader ClusterRoleBindings), with exceptional default cluster roles |
+| Escalation | `ls-esc-{run-UID}` | Cluster-wide read (via reader ClusterRoleBindings), with exceptional default cluster roles |
 
 For each step, the agentic-operator:
 1. Creates the per-step SA on the spoke (via standing kubeconfig)
@@ -199,7 +199,7 @@ MVP uses direct kube-api connectivity. The admin ensures network path between hu
 ## Security Invariants
 
 1. In hub-managed mode, LLM provider credentials never leave the hub.
-2. Baseline access is read-only. Additional execution permissions come from the approved option's RBAC: namespace-scoped grants apply only in the declared namespaces, while explicitly approved cluster-scoped rules can grant cluster-wide access. [PLANNED: OLS-4632] Configured baseline roles and discovered source roles follow the reader restrictions in [multicluster-agent-rbac.md](multicluster-agent-rbac.md); they cannot supply execution-only writes.
+2. Baseline access is read-only, with exceptional default cluster roles. Additional execution permissions come from the approved option's RBAC: namespace-scoped grants apply only in the declared namespaces, while explicitly approved cluster-scoped rules can grant cluster-wide access. [PLANNED: OLS-4632, OLS-4685] Configured baseline roles and discovered source roles follow the reader restrictions and exact-name exceptions in [multicluster-agent-rbac.md](multicluster-agent-rbac.md). Exempt-role permissions apply to every remote phase independently of execution approval.
 3. Standing identity credentials (spoke kubeconfigs) are stored as K8s Secrets on the hub, encrypted at rest.
 4. Hub namespace RBAC restricts which users/SAs can read spoke credential Secrets.
 5. Credential Secrets are labeled for audit (`hub.openshift.io/credential-type: spoke-kubeconfig`).

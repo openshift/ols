@@ -1,6 +1,8 @@
 # 0045: Configurable Multicluster Baseline Roles via Seed-SA Discovery
 
-**Status:** Accepted for planned implementation
+**Status:** Accepted for planned implementation; two exact-name exceptions added by [ADR 0048](0048-name-based-remote-reader-exceptions.md).
+
+**Amendment (OLS-4685):** Retain the reader policy below for every non-exempt role. Only ClusterRoles named exactly `cluster-reader` or `cluster-monitoring-view` bypass permission-content validation in hub provisioning and remote phase setup, including after administrator modifications. Existence/accessibility checks remain mandatory. Local single-cluster validation is unchanged. Exempt-role writes or sensitive access can reach every remote phase independently of execution approval. This amendment supersedes blanket statements below that no remote baseline writes are possible; the [canonical contract](../what/multicluster-agent-rbac.md) is authoritative.
 **Applies to:** lightspeed-hub, lightspeed-agentic-operator
 **Tracking:** OLS-4632
 

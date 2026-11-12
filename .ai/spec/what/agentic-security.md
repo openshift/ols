@@ -4,7 +4,7 @@ Security constraints for the agentic run system. Covers approval authorization, 
 
 ## Multicluster Baseline RBAC [PLANNED: OLS-4632]
 
-[Multicluster agent baseline RBAC](multicluster-agent-rbac.md) defines configurable fleet defaults and additive spoke reader roles. Every remote phase uses its own ephemeral spoke SA and dedicated reader bindings; `openshift-lightspeed-managed/lightspeed-agent` is only the discovery seed. Baseline roles remain read-only and exclude Secret/RBAC-resource access. Approved execution permissions remain separate. For remote runs, that contract supersedes the historical shared analysis/verification SA and fixed reader-role descriptions below; it does not redesign local runs.
+[Multicluster agent baseline RBAC](multicluster-agent-rbac.md) defines configurable fleet defaults and additive spoke reader roles. Every remote phase uses its own ephemeral spoke SA and dedicated reader bindings; `openshift-lightspeed-managed/lightspeed-agent` is only the discovery seed. Baseline roles remain read-only and exclude Secret/RBAC-resource access, with exceptional default cluster roles [PLANNED: OLS-4685; ADR 0048](../decisions/0048-name-based-remote-reader-exceptions.md). Exempt permissions apply in every remote phase independently of execution approval. Approved execution permissions remain separate; local reader validation is unchanged. For remote runs, that contract supersedes the historical shared analysis/verification SA and fixed reader-role descriptions below; it does not redesign local runs.
 
 ## Security Gaps Addressed
 
