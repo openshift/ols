@@ -48,6 +48,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Understand how multicluster is tested | `what/multicluster-testing.md` |
 | Understand the FIPS compliance model for Go components | `decisions/0050-native-go-fips.md` |
 | Understand the x86-64-v2 ISA guarantee for Go binaries | `decisions/0051-x86-64-v2-isa-level.md` |
+| Understand the unified configuration surface (root OLSConfig, LLMProvider, Agent, MCPServer) | [PLANNED] `what/configuration-surface.md` |
 | Check cross-repo rules | `constraints.md` |
 | Browse architectural decisions | `decisions/README.md` |
 

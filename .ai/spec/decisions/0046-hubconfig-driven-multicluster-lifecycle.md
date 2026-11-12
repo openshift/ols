@@ -1,6 +1,7 @@
 # 0046: HubConfig-Driven Multicluster Lifecycle
 
 **Status:** Accepted lifecycle design, delivered by PR #120 (OLS-4665); implementation planned. Packaging aligned with PR #121 / ADR 0042 through OLS-4432. Exact shared interfaces and OLM permission packaging still require validation.
+**Superseded in part:** [ADR 0048](0048-unified-configuration-surface.md) [PLANNED] moves Hub activation and fleet settings from a separate `HubConfig` resource to the presence of an `OLSConfig.spec.hub` section. The drain-before-decommission lifecycle below is retained as intent; its mapping to section removal is not yet designed.
 **Date:** 2026-10-29
 **Applies to:** lightspeed-operator, lightspeed-hub, lightspeed-agentic-operator, lightspeed-agentic-alerts-adapter
 
