@@ -134,3 +134,9 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0047](0047-tool-output-redaction-policy.md) | [PLANNED: OLS-3939] One policy contract with separate Classic and Agentic runtimes, sanitized UI replies and raw source audit evidence | service, console, operator, agentic-operator, agentic-sandbox, agentic-console |
+
+### Agentic Token Usage (2026-11)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0049](0049-sandbox-token-usage-accounting.md) | [PLANNED: OLS-3760] Callback-based token accounting per sandbox invocation; outputTokens stays billed total, reasoning as complete-or-unset subset, tool/skill tokens from input differences | agentic-sandbox, agentic-operator |
