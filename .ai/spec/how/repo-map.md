@@ -73,7 +73,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | --- | --- | --- |
 | AgenticRun lifecycle (analysis → execution → verification) | lightspeed-agentic-operator | `what/run-lifecycle.md` |
 | Terminal-run TTL and fixed deletion deadline | lightspeed-agentic-operator | [PLANNED: OLS-4280] Parent `what/terminal-run-ttl.md`; child `what/crd-api.md`, `what/run-lifecycle.md` |
-| Per-run cancellation and global sandbox hard-stop | lightspeed-agentic-operator | [PLANNED: OLS-3298, OLS-4018] `what/crd-api.md`, `what/run-lifecycle.md`, `what/system-config.md`, `what/sandbox-execution.md`, `how/reconciler.md` |
+| Per-run cancellation and global sandbox hard-stop | lightspeed-agentic-operator | [PLANNED: OLS-3298, OLS-4132] `what/crd-api.md`, `what/run-lifecycle.md`, `what/system-config.md`, `what/sandbox-execution.md`, `how/reconciler.md`, `decisions/0001-global-kill-switch-confirmation.md` |
 | Approval gates & policies | lightspeed-agentic-operator | `what/approval.md` |
 | Agentic CRD API (AgenticRun, Agent, LLMProvider) | lightspeed-agentic-operator | `what/crd-api.md` |
 | Sandbox provisioning & execution | lightspeed-agentic-operator | `what/sandbox-execution.md` |
@@ -89,7 +89,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Concern | Repo | Spec Files |
 | --- | --- | --- |
 | AgenticRun list/detail UI | lightspeed-agentic-console | `what/run-lifecycle.md` |
-| Per-run Stop control and cancellation presentation | lightspeed-agentic-console | [PLANNED: OLS-3298] `what/run-lifecycle.md`, `how/k8s-data-layer.md` |
+| Per-run Stop control and cancellation presentation | lightspeed-agentic-console | [PLANNED: OLS-3298, OLS-4134] `what/run-lifecycle.md`, `how/k8s-data-layer.md` |
 | Dynamic configuration components | lightspeed-agentic-console | `what/dynamic-components.md` [PLANNED -- file does not yet exist] |
 | Configuration UI (approval policies, providers, agents) | lightspeed-agentic-console | `what/configuration.md` |
 | Console plugin system integration | lightspeed-agentic-console | `how/console-plugin-system.md` |
