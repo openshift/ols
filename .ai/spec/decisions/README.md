@@ -140,3 +140,10 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 | # | Decision | Repos |
 |---|---|---|
 | [0049](0049-sandbox-token-usage-accounting.md) | [PLANNED: OLS-3760] Callback-based token accounting per sandbox invocation; outputTokens stays billed total, reasoning as complete-or-unset subset, tool/skill tokens from input differences | agentic-sandbox, agentic-operator |
+
+### FIPS Compliance (2026-11)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0050](0050-native-go-fips.md) | Native Go FIPS 140-3 provider (`GOFIPS140=certified`, `//go:debug fips140=on`, ubi9-micro); byok-go keeps non-crypto CGo | operator, agentic-operator, hub, collector, alerts-adapter, rag-content |
+| [0051](0051-x86-64-v2-isa-level.md) | Build-time x86-64-v2 ISA verification for all Go binaries (`check-isa-level`, `GOAMD64=v2`); replaces ld.so enforcement lost to static linking | operator, agentic-operator, hub, collector, alerts-adapter, rag-content |
