@@ -178,7 +178,7 @@ sandboxCluster.ProxyURL = standingCluster.ProxyURL  // empty string if not MCE
 
 Owner references do not work across clusters. Cleanup is explicit:
 
-1. **Labels**: All spoke-side resources labeled with `hub.openshift.io/spoke-cluster` and `hub.openshift.io/agentic-run`.
+1. **Labels**: All spoke-side resources labeled with `hub.openshift.io/spoke-cluster` and `hub.openshift.io/agentic-run`. On these spoke-side resources, `hub.openshift.io/spoke-cluster` holds the run's `spec.targetCluster` (SpokeCluster name, truncated to 63 characters). On hub AgenticRuns created by the alerts-adapter, the same key holds the adapter target identity (`spoke-<name>` or `local`), not the bare name; see [alerts-adapter-multicluster.md](alerts-adapter-multicluster.md) rules 19–20.
 2. **Finalizer**: Finalizer on AgenticRun CR. Controller removes spoke-side resources (per-step SAs, Roles, RoleBindings) and deletes dedicated per-step reader ClusterRoleBindings before releasing the finalizer. [PLANNED: OLS-4632] Reader binding cleanup uses actual run/step ownership rather than the current source list.
 3. **Token TTL**: 24h token expiry as safety net. Periodic reconciliation sweeps stale SAs.
 4. **Hub-side cleanup**: Sandbox kubeconfig Secrets are auto-GC'd via owner reference to AgenticRun.
