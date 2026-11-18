@@ -21,7 +21,7 @@ The adapter operates in one of two modes, controlled by the `--multicluster` CLI
 | Mode | Behavior |
 |---|---|
 | Single-cluster (default, flag absent) | Current behavior. Polls the local in-cluster AlertManager. No SpokeCluster watch. No `spec.targetCluster` or spoke label on AgenticRuns. |
-| Multi-cluster (`--multicluster`) | Watches SpokeCluster CRs. Polls spoke AlertManagers via per-spoke credential Secrets. Sets `spec.targetCluster` and `hub.openshift.io/spoke-cluster` label on every AgenticRun. |
+| Multi-cluster (`--multicluster`) | Watches SpokeCluster CRs. Polls spoke AlertManagers via per-spoke credential Secrets. Sets `spec.targetCluster` (SpokeCluster name) on spoke-derived AgenticRuns and the `hub.openshift.io/spoke-cluster` target-identity label on every AgenticRun. |
 
 ## Behavioral Rules
 
@@ -56,15 +56,15 @@ The adapter operates in one of two modes, controlled by the `--multicluster` CLI
 
 ### AgenticRun Creation (multi-cluster mode)
 
-18. Every AgenticRun created in multi-cluster mode MUST set `spec.targetCluster` to the SpokeCluster name.
-19. Every AgenticRun created in multi-cluster mode MUST carry the label `hub.openshift.io/spoke-cluster: {spoke-name}`.
-20. The `hub.openshift.io/spoke-cluster` label MUST NOT be set in single-cluster mode.
+18. Every spoke-derived AgenticRun created in multi-cluster mode MUST set `spec.targetCluster` to the SpokeCluster name.
+19. Every spoke-derived AgenticRun created in multi-cluster mode MUST carry the label `hub.openshift.io/spoke-cluster` set to the spoke's target identity: `spoke-<SpokeCluster name>`, or, when that exceeds 63 characters, the name truncated and suffixed with `-` plus the first 12 hex characters of the SHA-256 of the full name. The value is never the bare SpokeCluster name, so it cannot collide with the reserved local identity. Consumers that need the SpokeCluster name MUST read `spec.targetCluster`. See the adapter's `.ai/spec/what/multicluster.md` rules 16–17.
+20. The `hub.openshift.io/spoke-cluster` label MUST NOT be set in single-cluster mode. In multi-cluster mode, AgenticRuns from the hub's local target (enabled unless `ALERTMANAGER_URL` is explicitly empty) carry the reserved identity `local` and no `spec.targetCluster`.
 21. AgenticRuns are created on the hub cluster using the adapter's own pod SA (in-cluster config). The spoke kubeconfig is only used for AlertManager access.
 22. AgenticRuns are created in the `openshift-lightspeed` namespace on the hub.
 
 ### Deduplication
 
-23. In multi-cluster mode, `ListAgenticRuns` MUST include the `hub.openshift.io/spoke-cluster` label in its label selector, scoping dedup to the originating spoke.
+23. In multi-cluster mode, `ListAgenticRuns` MUST filter on the target's `hub.openshift.io/spoke-cluster` identity value (rules 19–20) in its label selector, scoping dedup to the originating target.
 24. The same alert firing on two different spokes MUST produce two separate AgenticRuns — no cross-spoke dedup.
 25. In single-cluster mode, dedup behavior is unchanged (no spoke label filter).
 
