@@ -40,7 +40,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Understand the compliance audit logging system | `what/audit-logging.md` |
 | Understand the temporary audit log pipeline | `what/templog.md` |
 | Understand Agentic product data collection | `what/agentic-data-collection.md` |
-| Understand agentic token usage reporting (per sandbox invocation and per run) | [PLANNED: OLS-3760] `what/token-usage.md` |
+| Understand agentic token usage reporting and Prometheus export | [OLS-3760; PLANNED: OLS-3998] `what/token-usage.md` |
 | Understand multicluster operations | `what/multicluster-ops.md` |
 | Design on-demand multicluster activation and shutdown | [PLANNED: OLS-4665] [HubConfig-driven lifecycle design](../../docs/superpowers/specs/2026-10-29-OLS-4665-on-demand-multicluster-design.md); `decisions/0046-hubconfig-driven-multicluster-lifecycle.md` |
 | Configure multicluster agent baseline reader roles | [PLANNED: OLS-4632] `what/multicluster-agent-rbac.md` |

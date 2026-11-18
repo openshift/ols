@@ -1,54 +1,83 @@
 # Agentic Token Usage
 
-Cross-repo contract for LLM token usage reported per sandbox invocation and per AgenticRun. Design and rationale: [OLS-3760 design](../../../docs/superpowers/specs/2026-11-16-OLS-3760-token-usage-design.md); decision: [ADR 0049](../decisions/0049-sandbox-token-usage-accounting.md).
+Cross-repository contract for LLM token usage measured per sandbox invocation, aggregated per AgenticRun, and exported by the agentic operator for Prometheus. Design and rationale: [OLS-3760 design](../../../docs/superpowers/specs/2026-11-16-OLS-3760-token-usage-design.md), [OLS-3998 metrics design](../../../docs/superpowers/specs/2026-11-18-OLS-3998-prometheus-token-metrics-design.md); accounting decision: [ADR 0049](../decisions/0049-sandbox-token-usage-accounting.md).
 
 ## Purpose
 
-Let users estimate the cost of agentic work by hand and understand model context usage (input consumed, tool/skill share, reasoning share, peak single-call context occupancy).
+Let users inspect per-invocation and per-run token usage, estimate model cost externally, understand context occupancy, and aggregate consumption by namespace, workflow step, model, and token type through Prometheus.
 
 ## Behavioral rules
 
-### Unit
+### Reporting unit
 
-1. The reporting unit is **one sandbox invocation**: one sandbox pod run that publishes exactly one Result CR (`AnalysisResult`, `ExecutionResult`, `VerificationResult`, `EscalationResult`). A workflow phase may involve several invocations; each reports separately.
-2. `AgenticRun.status.tokenUsage` aggregates the `status.tokenUsage` of every Result CR the operator processes for that run.
+1. One sandbox invocation publishes at most one Result CR: `AnalysisResult`, `ExecutionResult`, `VerificationResult`, or `EscalationResult`. A workflow may contain several invocations and each reports independently.
+2. `AgenticRun.status.tokenUsage` aggregates usage from every Result CR the operator incorporates for that run.
+3. [PLANNED: OLS-3998] Prometheus consumption counters are updated from individual Result CR usage when the operator incorporates that Result into its AgenticRun. The Result CR preserves the per-step model needed for metric attribution; model is not a run-level property.
 
-### Fields
+### Result and AgenticRun fields
 
-3. Input/output usage on Result CRs and AgenticRun (`inputTokens`, `outputTokens`) is implemented [OLS-3661]. Both are required whenever `tokenUsage` is present.
-4. `inputTokens` is the sum of provider-reported input tokens over all model calls of the invocation, including cached input.
-5. `outputTokens` is the sum of provider-reported output tokens over all model calls, including reasoning tokens. Its meaning MUST NOT change to exclude reasoning.
-6. [PLANNED: OLS-3760] `reasoningTokens` (optional) is the reasoning portion of `outputTokens`. It MUST be set only when every model call of the invocation that reported usage also reported a reasoning count (an explicit 0 counts as reported); otherwise it MUST be absent. Partial sums MUST NOT be published. When no model call reported usage, it is 0.
-7. [PLANNED: OLS-3760] `toolTokens` (optional) is the estimated portion of `inputTokens` contributed by tool results, including skill reads, entering the main agent's context. `skillTokens` (optional) is the portion of `toolTokens` from trusted skill-source reads (sandbox `provider-contract.md` rule 5a). Both are derived from provider-reported input differences between consecutive main-agent calls, never from a local tokenizer, and are always published (0 without tool calls or model calls).
-8. [PLANNED: OLS-3760] `peakInputTokens` (optional) is the largest provider-reported input of any single main-agent call in the invocation (observed context occupancy, not the model's configured limit); 0 when there was no main-agent call. Structured-output, classifier and summarization calls MUST NOT contribute to `peakInputTokens`, `toolTokens` or `skillTokens`.
-9. [PLANNED: OLS-3760] `model` (optional, Result CRs only) is the observed response model of the invocation. It is absent on `AgenticRun`.
-10. [PLANNED: OLS-3760] The sandbox MUST publish values satisfying `reasoningTokens <= outputTokens`, `skillTokens <= toolTokens <= inputTokens` and `peakInputTokens <= inputTokens`, clamping if needed. The CRD MUST NOT enforce these as cross-field validation, so that an anomaly cannot fail the Result CR publish.
+4. `TokenUsage` may contain `inputTokens`, `outputTokens`, `reasoningTokens`, `toolTokens`, `peakInputTokens`, and `model`. No individual field is CRD-required. A present `tokenUsage` object requires at least one property; a token anomaly must never cause the API server to reject the Result CR's complete status publication.
+5. Presence is field-specific. Absent means "not reported"; explicit `0` means "reported, with no tokens". Unknown values MUST NOT be zero-filled.
+6. `inputTokens` is the sum of provider-reported input tokens over all model calls in the invocation, including cached input.
+7. `outputTokens` is the sum of provider-reported output tokens over all model calls, including reasoning. Its meaning MUST NOT change to exclude reasoning.
+8. `reasoningTokens` is the reasoning portion of `outputTokens`. It is published only when every model call that reported usage also reported reasoning details; otherwise it is absent. Partial reasoning sums MUST NOT be published.
+9. `toolTokens` is an estimate of the portion of main-agent input contributed by tool results. Skill content is read through tools and is included in `toolTokens`; there is no separate `skillTokens` field. It is derived from provider-reported usage differences, never a local tokenizer. Missing reasoning needed by the derivation, a negative delta, or another unreliable attribution makes the invocation field absent rather than clamped or partially published.
+10. `peakInputTokens` is the largest provider-reported input of a single main-agent call. It measures observed context occupancy, not consumption or the model's configured context limit. Classifier, shaping, and summarization calls do not contribute to it.
+11. `model` is the model observed for the invocation. It is Result-CR-only and is never aggregated onto `AgenticRun.status.tokenUsage`. Different steps of one AgenticRun may report different models.
+12. Cross-field validation is not enforced by the CRD. Token telemetry MUST NOT fail, block, or delay the Result CR, workflow step, or AgenticRun.
 
-### Counting (sandbox)
+### Sandbox counting [OLS-4921; PR #292]
 
-11. [PLANNED: OLS-3760] Usage MUST include every model call made during the invocation: main-agent turns, the structured-output pass and its retry, tool-result inspection classifier calls, and summarization calls. Each call MUST be counted exactly once.
-12. [PLANNED: OLS-3760] Input, output and reasoning counts MUST come only from provider-reported usage; a call's usage MUST NOT be dropped because the response lacks a model name.
+13. Usage includes every model call made during the invocation: main-agent turns, structured-output shaping and retry, tool-result inspection classifier calls, and summarization calls. Each callback run is counted once, including usage received through error callbacks.
+14. Usage comes only from provider-reported metadata. Missing response-model metadata does not discard a call's usage; the configured route model may be used as the model fallback.
+15. Every failure or timeout path that publishes a Result CR publishes usage observed before the failure. When no model usage was observed, `status.tokenUsage` is absent. A failure path that intentionally publishes no Result CR reports no CR usage.
+16. Anthropic models on Bedrock and Vertex may omit `reasoningTokens` until their upstream integrations expose reasoning details. No local tokenization workaround is applied.
 
-### Aggregation (operator)
+### Operator aggregation and completeness [OLS-4920; PR #608]
 
-13. [PLANNED: OLS-3760] `inputTokens` and `outputTokens` are summed (unchanged from OLS-3661). `reasoningTokens`, `toolTokens` and `skillTokens` are summed complete-or-unset: present on the run only if present on every processed Result CR that carries `status.tokenUsage` (Result CRs without `status.tokenUsage` are skipped and do not clear run values). `peakInputTokens` is the maximum, with the same presence rule. `model` is not aggregated.
+17. For each incorporated Result CR, every reported `inputTokens`, `outputTokens`, `reasoningTokens`, and `toolTokens` value is added to the corresponding run field. `peakInputTokens` takes the maximum. An omitted field adds nothing and never clears a value reported by an earlier step. A field remains absent until some incorporated Result reports it.
+18. A Result CR without `status.tokenUsage` contributes nothing. Explicit zeros are reported values and aggregate normally. `model` is not aggregated.
+19. Run-level values are partial sums of what was reported; their presence does not assert completeness. Per-Result values remain the source of truth for step attribution.
+20. For succeeded steps the operator records advisory `TokenUsageReported` completeness status. `inputTokens`, `outputTokens`, and `peakInputTokens` are required in practice; `reasoningTokens` and `toolTokens` are optional. Missing fields increment `agenticrun_token_usage_missing_total{field}`. Missing telemetry produces warning-oriented logs but no Kubernetes Warning Event and MUST NOT change phase or outcome.
+21. Failed steps are not assessed for completeness because failure before a model call is valid. Any usage they do report is still aggregated.
+22. Reconciliation of a Result already incorporated into the AgenticRun does not aggregate it again.
 
-### Known gaps
+### Prometheus consumption export [PLANNED: OLS-3998]
 
-14. [PLANNED: OLS-3760] For Anthropic models on Bedrock and Vertex, `reasoningTokens` is absent until upstream fixes are released and adopted ([langchain-aws PR 1497](https://github.com/langchain-ai/langchain-aws/pull/1497), [langchain-google PR 2010](https://github.com/langchain-ai/langchain-google/pull/2010)). No local workaround is applied.
+23. The lightspeed-agentic-operator exposes one counter on its existing secured metrics endpoint:
 
-## Repo ownership
+```text
+agenticrun_token_usage_total{
+  namespace="<AgenticRun namespace>",
+  step_type="analysis|execution|verification|escalation",
+  model="<observed model or unknown>",
+  token_type="input|output|reasoning|tool"
+}
+```
 
-| Repo | Responsibility | Child specs |
+24. The counter is updated from an individual Result CR when that Result's usage is incorporated into its AgenticRun. Each reported field increments independently: `inputTokens` maps to `input`, `outputTokens` to `output`, `reasoningTokens` to `reasoning`, and `toolTokens` to `tool`. An absent field produces no increment; an explicit zero is valid but does not change the counter.
+25. The `model` label uses the Result CR's observed model. When usage is reported without a model, the fixed value is `unknown`. AgenticRun name, UID, arbitrary owner values, and Result name MUST NOT be labels because they create unbounded per-run series.
+26. `peakInputTokens` MUST NOT be exported by this consumption counter because it is a maximum/context-occupancy measurement, not consumed tokens.
+27. `reasoning` is a subset of `output`, and `tool` is an estimated subset of `input`. Consumers MUST NOT sum all `token_type` values together.
+28. A reconciliation that sees usage already incorporated into the AgenticRun does not intentionally increment the counter again. This is retry protection, not a transactional or durable exactly-once guarantee. Counters follow normal Prometheus process lifecycle and may reset when the operator restarts.
+29. Metric handling is advisory. It MUST NOT change Result processing, AgenticRun status, conditions, phase, or outcome.
+30. OLS-3998 does not define sandbox Prometheus counters, configurable budgets, budget windows, enforcement, recording rules, alerts, dashboards, pricing tables, or token-to-currency conversion. Those are separate observability work that may consume this metric.
+
+## Repository ownership
+
+| Repository | Responsibility | Child specifications |
 | --- | --- | --- |
-| lightspeed-agentic-sandbox | Counting all model calls, tool/skill derivation, peak input, publishing `status.tokenUsage` | `what/provider-contract.md` (rules 7, 7a, 57), `what/run-api.md` (rule 21 (a₁), (a₂)), `how/provider-architecture.md` |
-| lightspeed-agentic-operator | `TokenUsage` CRD type, run-level aggregation | `what/crd-api.md` (rules 6c–6e, 6c.1), `what/sandbox-execution.md` (rules 43.1, 43.2) |
+| lightspeed-agentic-sandbox | Count all model calls, estimate tool usage, track peak input and observed model, publish Result CR usage | `what/provider-contract.md`, `what/run-api.md`, `how/provider-architecture.md` |
+| lightspeed-agentic-operator | Define the shared CRD shape, aggregate run usage, report completeness, and expose the planned OLS-3998 Prometheus counter | `what/crd-api.md`, `what/sandbox-execution.md`, `what/system-overview.md` |
+| ols observability follow-up | Define budgets, recording/alerting rules, dashboards, and optional cost conversion | Not part of OLS-3998 |
 
-Display is out of scope (lightspeed-agentic-console, OLS-3692 / OLS-3652).
+Display in lightspeed-agentic-console remains out of scope here.
 
 ## Integration contract
 
-| Producer → Consumer | Channel | Data |
+| Producer → consumer | Channel | Data |
 | --- | --- | --- |
-| Sandbox → Operator | Result CR `status.tokenUsage` (status subresource patch) | `inputTokens`, `outputTokens`, optional `reasoningTokens`, `toolTokens`, `skillTokens`, `peakInputTokens`, `model` |
-| Operator → users | `AgenticRun.status.tokenUsage` | Aggregates per rule 13 (no `model`) |
+| Sandbox → operator | Result CR `status.tokenUsage` | Individually optional token fields plus per-invocation `model` |
+| Operator → users | `AgenticRun.status.tokenUsage` | Partial run-level sums and maximum peak input; no model |
+| Operator → Prometheus [PLANNED: OLS-3998] | `agenticrun_token_usage_total` | Consumption by namespace, step type, model, and token type |
+| Prometheus → follow-up observability content | Queries/rules | Budgets, alerts, dashboards, and cost attribution outside OLS-3998 |
