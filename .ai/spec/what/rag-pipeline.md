@@ -68,16 +68,17 @@ The qualified instruction ("if they address the user's specific question") mitig
 | Path | Producer | Consumer | Content |
 |---|---|---|---|
 | `/rag/vector_db/{index_name}/` | BYOK init container | service | FAISS index files (docstore, index_store, graph_store, vector_store, metadata) |
-| `/rag/embeddings_model/` | service image | service | HuggingFace-compatible model directory (all-mpnet-base-v2) |
+| `/app-root/embeddings_model/` | service image | service | HuggingFace-compatible model directory (all-mpnet-base-v2), symlinked into pre-populated offline HF caches |
 
 ### BYOK Configuration (olsconfig.yaml)
 
 | Field | Purpose |
 |---|---|
-| `ols_config.reference_content.embeddings_model_path` | Path to BYOK embedding model |
 | `ols_config.reference_content.indexes[].product_docs_index_path` | Path to FAISS index directory |
 | `ols_config.reference_content.indexes[].product_docs_index_id` | Optional ID for deserialization |
 | `ols_config.reference_content.indexes[].product_docs_origin` | Human-readable label for logging |
+
+Note: the generated `olsconfig.yaml` may also contain `ols_config.reference_content.embeddings_model_path`; the service does not read this key — the BYOK embedding model is fixed and bundled in the service image.
 
 Note: `ols_config.reference_content` is only populated when BYOK `rag[]` entries exist in the CR. It is no longer used for OCP product docs.
 
