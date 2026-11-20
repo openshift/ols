@@ -147,3 +147,9 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 |---|---|---|
 | [0050](0050-native-go-fips.md) | Native Go FIPS 140-3 provider (`GOFIPS140=certified`, `//go:debug fips140=on`, ubi9-micro); byok-go keeps non-crypto CGo | operator, agentic-operator, hub, collector, alerts-adapter, rag-content |
 | [0051](0051-x86-64-v2-isa-level.md) | Build-time x86-64-v2 ISA verification for all Go binaries (`check-isa-level`, `GOAMD64=v2`); replaces ld.so enforcement lost to static linking | operator, agentic-operator, hub, collector, alerts-adapter, rag-content |
+
+### Unified Configuration Surface (2026-11)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0048](0048-unified-configuration-surface.md) | [PLANNED] Root OLSConfig with presence-enabled chat/agentic/hub sections; reusable LLMProvider, Agent and MCPServer resources; replace-not-merge inheritance; protected operator-owned `openshift` MCP server; supersedes the HubConfig activation resource of 0046 | operator, agentic-operator, agentic-sandbox, service, hub, agentic-console |

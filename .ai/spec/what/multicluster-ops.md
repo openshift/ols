@@ -8,6 +8,8 @@ Cross-repo specification for fleet-scale agentic operations. A central hub clust
 
 ## On-Demand Activation and Shutdown [PLANNED: OLS-4665]
 
+> **Activation resource [PLANNED]:** [configuration-surface.md](configuration-surface.md) and [ADR 0048](../decisions/0048-unified-configuration-surface.md) replace the separate `HubConfig` resource with an optional `OLSConfig.spec.hub` section whose presence activates the Hub. References to `HubConfig` below describe that activation intent; the drain-before-decommission lifecycle is retained, and its mapping to section removal is not yet designed.
+
 The [approved discussion design](../../../docs/superpowers/specs/2026-10-29-OLS-4665-on-demand-multicluster-design.md) and [ADR 0046](../decisions/0046-hubconfig-driven-multicluster-lifecycle.md) define the planned delivery/lifecycle contract:
 
 - The unified OLS bundle installs hub APIs and static ServiceAccount/RBAC on supported OCP 4.x and 5.x clusters, but no hub Deployment. The OLS operator deploys and lifecycle-manages the hub when the singleton HubConfig is created; no OLSConfig activation property is used.
