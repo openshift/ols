@@ -41,6 +41,7 @@ AI agents. Content is optimized for precision and machine consumption.
 | Understand the temporary audit log pipeline | `what/templog.md` |
 | Understand Agentic product data collection | `what/agentic-data-collection.md` |
 | Understand agentic token usage reporting and Prometheus export | [OLS-3760; PLANNED: OLS-3998] `what/token-usage.md` |
+| Understand the shared chat/batch execution core | [PLANNED: OLS-4671] `what/unified-execution-core.md`; `decisions/0052-shared-deepagents-execution-core.md` |
 | Understand multicluster operations | `what/multicluster-ops.md` |
 | Design on-demand multicluster activation and shutdown | [PLANNED: OLS-4665] [HubConfig-driven lifecycle design](../../docs/superpowers/specs/2026-10-29-OLS-4665-on-demand-multicluster-design.md); `decisions/0046-hubconfig-driven-multicluster-lifecycle.md` |
 | Configure multicluster agent baseline reader roles | [PLANNED: OLS-4632] `what/multicluster-agent-rbac.md` |

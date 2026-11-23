@@ -1,6 +1,6 @@
 # 0015: Token Budget Partitioning
 
-**Status:** Accepted
+**Status:** Accepted. [PLANNED: OLS-4671] To be superseded for chat by [ADR 0052](0052-shared-deepagents-execution-core.md): in-run context management (tool reserve, per-round cap, truncation, history compression, prompt-budget validation) is delegated to DeepAgents eviction and summarization; see `what/unified-execution-core.md` rules 15–19.
 **Applies to:** lightspeed-service
 
 ## Context
