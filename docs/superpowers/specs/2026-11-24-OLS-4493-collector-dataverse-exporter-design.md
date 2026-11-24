@@ -245,6 +245,15 @@ queue's `max_size` before this point; the push function rejects (rather
 than truncates) anything that still exceeds the cap — an observable,
 counted drop, never a silent partial record.
 
+The 100 MiB cap is an assumption mirroring the ingress service's
+`DefaultMaxSize` (100 MB), not a published contract: the ingress does
+not advertise the limit on any queryable endpoint (its OpenAPI spec at
+`/api/ingress/v1/openapi.json` has no size fields), and per-content-type
+limits are deployment configuration on the ingress side
+(`INGRESS_MAXSIZEMAP`, per the insights-ingress-go deployment
+guidelines). The authoritative runtime signal is the HTTP 413 response,
+classified as a permanent counted drop (`reason=http_413`).
+
 ### Fan-out isolation (queue-full swallow)
 
 The exporter returned by `exporterhelper` is wrapped in a decorator:
