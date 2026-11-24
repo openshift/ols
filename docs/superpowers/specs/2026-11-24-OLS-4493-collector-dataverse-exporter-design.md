@@ -42,8 +42,10 @@ instead of a sidecar, and no files at all.
   objects per gzip TAR member, `agentic-v1/` prefix, one TAR per upload.
 - Reuse the Collector's stock queue/batch/retry machinery (`exporterhelper`)
   — no custom buffering code.
-- Preserve producer insulation: producers emit OTLP and are unaffected by
-  Dataverse availability.
+- Preserve fan-out isolation: producers emit OTLP and are unaffected by
+  Dataverse availability, and other trace consumers (trace backend,
+  customer-configured destinations) never receive duplicates or errors
+  caused by the dataverse exporter.
 - Bounded resource usage: queue size caps memory; no unbounded local state.
 
 ## Non-goals
@@ -68,6 +70,9 @@ instead of a sidecar, and no files at all.
   data is explicitly **not mission critical**; bounded loss windows are
   acceptable.
 - Deploying new infrastructure (Kafka, Vector, a message bus) for this path.
+- The dataverse exporter causing another trace consumer to receive
+  duplicates, or a producer request to fail, because of its own queue or
+  upload problems.
 
 ## Constraints (inherited)
 
@@ -240,6 +245,22 @@ queue's `max_size` before this point; the push function rejects (rather
 than truncates) anything that still exceeds the cap — an observable,
 counted drop, never a silent partial record.
 
+### Fan-out isolation (queue-full swallow)
+
+The exporter returned by `exporterhelper` is wrapped in a decorator:
+when `ConsumeTraces` fails with `exporterhelper.ErrQueueIsFull` (queue at
+capacity with `block_on_overflow: false`), the wrapper records the
+refused batch's span count in the drop counter (`reason=queue_full`),
+logs at warning level rate-limited (at most once per minute), and
+returns `nil`. The fan-out — producers and every other trace consumer —
+never sees the dataverse exporter's queue or upload problems, and no
+consumer receives duplicates caused by our failures. Trade-off
+accepted: a refused batch is dropped definitively instead of getting a
+second chance via producer retry; the 128 MiB queue buffers many
+minutes of inflow, so this only triggers in outages that would exhaust
+the retry budget regardless. All other errors pass through unchanged
+(retryable, surfaced to `retry_on_failure`).
+
 ### Authentication (ported from Python, once)
 
 - **Token:** read `openshift-config/pull-secret` via the Kubernetes API,
@@ -344,7 +365,7 @@ exporters:
 | Restarts | Memory-only queue: a restart costs at most the unsent queue contents. This is strictly less durable than today across *container* restarts (today's spool survives them), accepted per the not-mission-critical decision; switching to `file_storage` later is a one-line config change if field data justifies it. |
 | Bounded storage/retention | `queue_size: 128 MiB` in `sizer: bytes` bounds memory. No disk. Volume budget previously reserved for the spool (500 MiB) is freed. |
 | Credentials removed/absent after deployment | Lazy resolution: uploads fail with counted, retryable errors until the retry budget is exhausted; Collector, templog, and trace-backend pipelines keep running. Token rotation self-heals within ≤1 minute via the rate-limited refresh. |
-| Producer-visible failures | Enqueue failure on full queue returns a retryable error to the OTLP receiver (producer SDKs retry or drop per their own policy) — comparable to today's rule-33 coupling, but now only under sustained ingress outage with a full queue, instead of on any local write hiccup. |
+| Producer-visible failures | None by design (amended): a full queue is swallowed at the exporter — counted drop (`reason=queue_full`), rate-limited log, success returned — so the fan-out never surfaces the dataverse exporter's problems as OTLP errors. Without the swallow, a full queue would return `ErrQueueIsFull` up the fan-out; the receiver maps it to gRPC UNAVAILABLE / HTTP 503, the producer retries the whole request, and **other consumers receive duplicates**. Today's FileExporter has the same class of coupling (rule 33); this design removes it. |
 
 ### Compatibility
 
@@ -370,7 +391,9 @@ exporters:
 - **Integration (collector):** `exporterhelper` queue behavior with a fake
   ingress — flush at `flush_timeout` with tiny volume (the quiet-cluster
   case), batch split at `max_size`, retry/backoff on 5xx, drop counting on
-  exhausted retries and on full queue with `block_on_overflow: false`.
+  exhausted retries and on full queue with `block_on_overflow: false`;
+  queue-full is swallowed (nil returned, `reason=queue_full` counted,
+  producer sees success) while other errors propagate.
 - **Operator tests:** generated config contains the exporter when enabled;
   opt-out removes it; credential-absent omits it; sidecar assets absent;
   RBAC unchanged; all generated-config permutations validated as today.
@@ -423,6 +446,7 @@ exporters:
 | Wire format preserved (array/TAR/member naming) | Assistant proposal (avoids downstream change) |
 | Minimal REST client, no client-go; token re-read on 401/403 | Assistant call (builder may revisit) |
 | Credential lifecycle (amended): lazy live credentials at first upload, structural checks fail fast; 401-triggered token refresh rate-limited to 1/min, no re-send of known-stale token | User (amendment after comparing with the alternative design) |
+| Fan-out isolation (amended): queue-full swallowed at the exporter wrapper — counted drop (`queue_full`), rate-limited log, nil returned; producers and other consumers never see dataverse problems | User (amendment after comparing with the alternative design) |
 | Single coordinated rollout; no transition mode | Assistant call |
 
 ## Open items for the builder
