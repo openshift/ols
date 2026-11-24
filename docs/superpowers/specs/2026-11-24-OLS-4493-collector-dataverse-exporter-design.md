@@ -368,6 +368,15 @@ exporters:
   in-cluster service network, which is excluded from proxying via
   `NO_PROXY` semantics; they use the pod's projected SA token over the
   same client.
+- **IP family independence (audited 2026-11-24):** the exporter MUST NOT
+  embed assumptions that break on either IPv4-only or IPv6-only OCP
+  clusters. The only host:port composition uses `net.JoinHostPort`
+  (brackets IPv6); the ingress endpoint is a DNS name resolved by
+  `net/http`; proxy handling supports IPv6 literals and CIDRs in
+  `NO_PROXY`; the API client is never proxied. One known sharp edge,
+  accepted: an unbracketed IPv6-literal `endpoint` in a hand-edited
+  ConfigMap passes validation but fails at request time (the operator
+  generates a DNS endpoint, so this is unreachable in generated config).
 
 ### Gating
 
