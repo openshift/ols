@@ -342,23 +342,28 @@ exporters:
   the new exporter.
 - **TLS:** `ca_file`/`ca_pem` are supported knobs, addressing a gap that
   exists today — the sidecar has no custom-CA provision and relies on the
-  UBI system trust store, so MITM re-signing proxies cannot work.
-  Generated configuration never sets `insecure_skip_verify`, and the
-  exporter's config validation rejects it.
+  UBI system trust store, so MITM re-signing proxies cannot work. Whether
+  the operator auto-wires a trusted CA bundle (the
+  `config.openshift.io/inject-trusted-cabundle` ConfigMap pattern) is an
+  operator-wiring decision recorded in the work breakdown. Generated
+  configuration never sets `insecure_skip_verify`, and the exporter's
+  config validation rejects it.
 - **TLS versions and cipher suites:** the full standard `configtls` knob
   set is available on the same `tls:` block — `min_version` (default
   TLS 1.2, enforced by configtls), `max_version` (default: Go
   `crypto/tls` maximum), `cipher_suites` (IANA names, validated at
   startup), `curve_preferences`, and `include_insecure_cipher_suites`
   (never generated; rejected by validation, same policy as
-  `insecure_skip_verify`). **Policy: the operator-generated configuration
-  stays silent on versions and ciphers** — defaults already meet modern
-  baselines, and pinning cipher lists in generated config breaks clusters
-  when the ingress endpoint rotates its suite support. The knobs exist for
-  field tuning via an edited ConfigMap. On FIPS builds (cf. OLS-4860), the
-  `requirefips`-gated crypto/tls behavior restricts curves/ciphers
-  automatically; config can further constrain but never weaken a FIPS
-  deployment.
+  `insecure_skip_verify`). **What the operator generates into these knobs
+  is an operator-wiring decision, deliberately not fixed here** (see the
+  work breakdown): generating defaults is simplest; deriving from the
+  OpenShift TLS security profile (`ResolveTLSProfile` + `CipherCodes`,
+  as the operator already does for other TLS-exposing operands) is the
+  profile-compliant alternative. The exporter's contract is the knob set
+  plus validation — either operator choice works without exporter
+  changes. On FIPS builds (cf. OLS-4860), the `requirefips`-gated
+  crypto/tls behavior restricts curves/ciphers automatically; config can
+  further constrain but never weaken a FIPS deployment.
 - **Kubernetes API calls** (pull-secret, ClusterVersion) use the
   in-cluster service network, which is excluded from proxying via
   `NO_PROXY` semantics; they use the pod's projected SA token over the
@@ -448,7 +453,16 @@ exporters:
 3. **Operator — wiring** (`lightspeed-operator`): generate exporter config
    (gates: transcriptsDisabled + credentials); remove sidecar container,
    ConfigMap, data-collection and ledger volumes; keep RBAC; update
-   deployment and config tests.
+   deployment and config tests. Open operator decisions recorded here:
+   (a) **mount the projected ServiceAccount token into the collector
+   container** (read-only, at the conventional path) — the pod sets
+   `automountServiceAccountToken: false` and today's token volume is
+   mounted only into the sidecar, so without this the exporter cannot
+   read in-cluster credentials at all; (b) whether generated TLS values
+   are defaults or derived from the OpenShift TLS security profile
+   (`ResolveTLSProfile` + `CipherCodes`); (c) whether to wire the
+   `inject-trusted-cabundle` ConfigMap into `tls.ca_file` for
+   TLS-inspecting proxies.
 4. **Rollout ordering:** collector image containing `dataverseexporter`
    ships in a released bundle first; operator config follows (rule 37).
    Transition is a single coordinated upgrade — in-flight spool data on
