@@ -247,8 +247,27 @@ counted drop, never a silent partial record.
   `config.openshift.io/v1` `clusterversions` `version` → `spec.clusterID`.
 - Use the pod's projected ServiceAccount token with a minimal REST client
   (plain HTTP against the API server; **not** client-go — keep the
-  dependency surface small). Cache both values; on an ingress 401 or API
-  403, re-read once before failing, so secret rotation self-heals.
+  dependency surface small).
+- **Lifecycle (amended 2026-11-24, replacing fail-fast):** structural
+  prerequisites — in-cluster env vars and the ServiceAccount `ca.crt` —
+  are checked at exporter creation and fail fast (a deployment missing
+  them is fundamentally miswired and cannot self-heal). Live credentials
+  (pull-secret token, cluster ID) are resolved **lazily on the first
+  upload attempt**, never at startup: the Collector shares its process
+  with the templog and trace-backend pipelines, and a credential problem
+  must not stop those. If the pull-secret is removed after deployment,
+  the Collector restarts fine and the exporter fails uploads with
+  counted, retryable errors instead of crash-looping.
+- **Caching and rotation:** both values are cached after first read. The
+  SA token is re-read from the local projected file on every API call
+  (free, rotation-safe). The pull-secret token is re-read only on an
+  ingress 401, **rate-limited to at most one re-read per minute**: within
+  the window a 401 fails the attempt immediately (re-sending a
+  known-stale token is guaranteed waste) and exporterhelper backoff
+  brings the next attempt after the window. This avoids both API-server
+  chatter under sustained auth failure and coupling healthy uploads to
+  API-server availability (a per-attempt read would make an API-server
+  outage block uploads even when ingress is healthy).
 - The required RBAC already exists and is bound to the Collector's
   ServiceAccount today (it was created for the sidecar, same pod SA): read
   `openshift-config` pull-secret (RoleBinding-scoped), get
@@ -303,13 +322,15 @@ exporters:
 - **Collection gate (unchanged):** `transcriptsDisabled` false/absent
   enables the `traces/data_collection` pipeline. Opt-out removes the
   pipeline and the exporter.
-- **Credential gate:** the exporter requires the pull-secret auth to
-  resolve at startup. Mirroring today's sidecar gate, the operator deploys
-  the exporter config only when the telemetry credentials are available.
-  Unlike today, with no files there is no local collection while
-  credentials are absent — accepted consequence of removing the spool
-  (data is not collected on clusters that cannot upload; previously it
-  was collected and then lost on rotation).
+- **Credential gate:** the operator deploys the exporter config only when
+  the telemetry credentials are available (mirroring today's sidecar
+  gate). At runtime the exporter itself resolves credentials lazily (see
+  Authentication) — a missing or removed pull-secret degrades to counted,
+  retryable upload errors rather than blocking Collector startup. Unlike
+  today, with no files there is no local collection while credentials are
+  absent — accepted consequence of removing the spool (data is not
+  collected on clusters that cannot upload; previously it was collected
+  and then lost on rotation).
 
 ### Failure and loss semantics
 
@@ -322,6 +343,7 @@ exporters:
 | Acknowledgements | HTTP 202 + `request_id` per upload, logged; request IDs are not persisted locally (no dedup role for them downstream — Dataverse dedups on content). |
 | Restarts | Memory-only queue: a restart costs at most the unsent queue contents. This is strictly less durable than today across *container* restarts (today's spool survives them), accepted per the not-mission-critical decision; switching to `file_storage` later is a one-line config change if field data justifies it. |
 | Bounded storage/retention | `queue_size: 128 MiB` in `sizer: bytes` bounds memory. No disk. Volume budget previously reserved for the spool (500 MiB) is freed. |
+| Credentials removed/absent after deployment | Lazy resolution: uploads fail with counted, retryable errors until the retry budget is exhausted; Collector, templog, and trace-backend pipelines keep running. Token rotation self-heals within ≤1 minute via the rate-limited refresh. |
 | Producer-visible failures | Enqueue failure on full queue returns a retryable error to the OTLP receiver (producer SDKs retry or drop per their own policy) — comparable to today's rule-33 coupling, but now only under sustained ingress outage with a full queue, instead of on any local write hiccup. |
 
 ### Compatibility
@@ -360,8 +382,9 @@ exporters:
 - **E2E:** released-bundle upgrade path from the current sidecar layout;
   quiet cluster (single run, no size trigger) delivers within ~2×
   `flush_timeout`; ingress outage > retry budget drops counted data and
-  recovers; credential absent → no collection, no crashloop; opt-out → no
-  pipeline.
+  recovers; credential absent → collector starts, uploads fail with
+  counted errors, no crashloop; pull-secret restored → uploads resume
+  without restart; opt-out → no pipeline.
 - **Field validation (OLS-4492 track):** confirm Dataverse receives and
   parses payloads from the new exporter; record request IDs and
   array-boundary observations.
@@ -399,6 +422,7 @@ exporters:
 | `block_on_overflow: false`, `num_consumers: 2`, 128 MiB queue, 2/4 MiB batch sizes (spike-adjusted from 4/16) | Assistant proposal, tunable, user overridable at review |
 | Wire format preserved (array/TAR/member naming) | Assistant proposal (avoids downstream change) |
 | Minimal REST client, no client-go; token re-read on 401/403 | Assistant call (builder may revisit) |
+| Credential lifecycle (amended): lazy live credentials at first upload, structural checks fail fast; 401-triggered token refresh rate-limited to 1/min, no re-send of known-stale token | User (amendment after comparing with the alternative design) |
 | Single coordinated rollout; no transition mode | Assistant call |
 
 ## Open items for the builder
