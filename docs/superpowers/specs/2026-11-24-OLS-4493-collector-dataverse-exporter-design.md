@@ -4,40 +4,22 @@
 - **Status:** Draft for review
 - **Jira:** [OLS-4493](https://redhat.atlassian.net/browse/OLS-4493)
   (parent epic OLS-4490)
-- **Supersedes the active-file problem statement of this story:** the active
-  spool file is eliminated, not consumed.
 
-## Intent and why
+## Why change the upload path?
 
-Agentic OLS product telemetry (OTLP traces from `lightspeed-agentic-operator`
-and `lightspeed-agentic-sandbox`) must reach Red Hat Dataverse for product
-analysis: adoption, tool usage, failure modes, and cost. The released
-pipeline writes traces to a pod-local JSONL spool via the stock contrib
-FileExporter and uploads only size-rotated backups. Rotation is
-size-triggered only, so on quiet clusters the active file never rotates and
-its data is never uploaded — it sits on an emptyDir until a pod restart
-deletes it. Quiet clusters are the majority early in adoption, exactly when
-the data matters most.
+Red Hat uses Agentic traces to understand adoption, tool use, failures, and cost.
+The existing FileExporter writes traces to a pod-local JSONL file. The Python
+sidecar uploads rotated files, but rotation depends on size. On a low-volume
+cluster, the file may never rotate before the pod is replaced.
 
-Phase 2.1 replaces the file spool with a **`dataverse` exporter inside the
-Collector** that pushes trace batches directly to the Dataverse ingress API
-over the Collector's standard `sending_queue`, with time- and size-based
-batching. No component writes or reads intermediate files.
-
-Lineage, for context: OCPSTRAT-3983 (product need) → OLS-3569 (architecture:
-OTLP traces → Collector → Dataverse, downstream owns reconstruction) →
-OLS-4246 (delivery epic). The original delivery plan (OLS-4248/OLS-4249) had
-a custom Collector exporter that sealed files at 1 MiB **or 30 seconds**; the
-pivot to the stock FileExporter (OLS-4250) kept the size trigger and silently
-dropped the time trigger, which is the gap this design closes. This design is
-effectively a return to a custom exporter — with the upload in the Collector
-instead of a sidecar, and no files at all.
+Phase 2.1 sends batches directly from the Collector to Dataverse. A timer
+flushes partial batches even when no more traces arrive. This restores the
+time-based trigger proposed in OLS-4248/4249 without requiring a shared file.
 
 ## Goals
 
-- Quiet clusters' trace data reaches Dataverse within a bounded time
-  (`flush_timeout: 10m`) regardless of volume.
-- No process reads a file another process is writing; no files are involved.
+- Flush partial batches after 10 minutes when an exporter consumer is available.
+- Remove the shared spool and its polling sidecar.
 - Preserve the Dataverse wire format: one JSON array of OTLP trace-batch
   objects per gzip TAR member, `agentic-v1/` prefix, one TAR per upload.
 - Reuse the Collector's stock queue/batch/retry machinery (`exporterhelper`)
@@ -46,7 +28,7 @@ instead of a sidecar, and no files at all.
   Dataverse availability, and other trace consumers (trace backend,
   customer-configured destinations) never receive duplicates or errors
   caused by the dataverse exporter.
-- Bounded resource usage: queue size caps memory; no unbounded local state.
+- Limit queued data by byte size; do not write product traces to disk.
 
 ## Non-goals
 
@@ -62,17 +44,8 @@ instead of a sidecar, and no files at all.
 - Any Collector-side product-semantic transformation. The exporter packages
   bytes; it does not classify, join, or redact.
 
-## Anti-goals (failure even if it technically works)
-
-- Reintroducing a shared-volume file contract between two containers (the
-  seam that produced this Jira).
-- Gold-plated reliability (persistent volumes, fsync, exactly-once) — the
-  data is explicitly **not mission critical**; bounded loss windows are
-  acceptable.
-- Deploying new infrastructure (Kafka, Vector, a message bus) for this path.
-- The dataverse exporter causing another trace consumer to receive
-  duplicates, or a producer request to fail, because of its own queue or
-  upload problems.
+The exporter uses the Collector's existing queue and retry support. This
+design does not add persistent storage or a separate messaging service.
 
 ## Constraints (inherited)
 
@@ -81,10 +54,8 @@ From ADR 0043 / `.ai/spec/what/agentic-data-collection.md`:
 - Collection is opt-out via
   `OLSConfig.spec.ols.userDataCollection.transcriptsDisabled` (false or
   absent enables). No new CR field.
-- Eligibility is exact `service.name` matching in the routing processor;
-  the collection branch stays unbatched at the pipeline level (batching
-  belongs to the exporter's queue, which is what `exporterhelper` batching
-  is).
+- The routing connector selects resources by exact `service.name`. Only the
+  exporter batches data on the collection branch.
 - Native OTLP payloads are preserved: identifiers, timestamps, statuses,
   resource/scope context, schema URLs, typed attributes, links, events,
   dropped counts. No OLS-level `schema_version` field.
@@ -94,16 +65,7 @@ From ADR 0043 / `.ai/spec/what/agentic-data-collection.md`:
 - Collector image and generated configuration must roll out together
   (rule 37).
 
-From this conversation (user decisions):
-
-- Not mission critical: pragmatic loss windows acceptable; no coverage of
-  every failure path.
-- Memory-only queue (no `file_storage`); `flush_timeout: 10m`; latency is
-  not critical and 5m was deemed possibly too short.
-
-## Current state (what changes)
-
-Today, in the released operator:
+## Deployment changes
 
 | Piece | Repo | Today | After this design |
 |---|---|---|---|
@@ -163,22 +125,33 @@ format), and introducing Kafka/NATS/Vector (new infrastructure for
 non-critical data; Vector also cannot do pull-secret auth or the ingress
 API).
 
-**Why A2 wins:** it is the only option that removes the file seam entirely
-while reusing stock machinery for everything hard (queueing, batching,
-retry) and keeping the wire format byte-compatible for Dataverse. Its
-unique cost — a second implementation of ~200 lines of auth/upload logic —
-is fixed and small.
+**Decision:** A2 removes the shared volume and sidecar without introducing a
+new service. The trade-off is maintaining upload and authentication code in
+both the Go exporter and the Classic Python uploader.
 
 ## The design
 
 ### Component
 
 New package `dataverseexporter/` in `lightspeed-otel-collector`, registered
-in `builder-config.yaml` alongside the existing exporters. Pipeline wiring
-(generated by the operator):
+in `builder-config.yaml` alongside the existing exporters. Minimal pipeline wiring (the operator retains its configured OTLP endpoints and backend route):
 
 ```yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: localhost:4317
+
+connectors:
+  routing/data_collection:
+    table:
+      - context: resource
+        condition: attributes["service.name"] == "lightspeed-agentic-operator" or attributes["service.name"] == "lightspeed-agentic-sandbox"
+        pipelines: [traces/data_collection]
+
 exporters:
+  nop: {}
   dataverse:
     endpoint: https://console.redhat.com/api/ingress/v1/upload
     service_id: ols            # or rhos-lightspeed, per the existing label rule
@@ -201,9 +174,11 @@ exporters:
 
 service:
   pipelines:
-    traces/data_collection:    # replaces the file/data_collection terminus
+    traces:
       receivers: [otlp]
-      processors: [routing/data_collection]
+      exporters: [nop, routing/data_collection] # retain the existing backend route where configured
+    traces/data_collection:
+      receivers: [routing/data_collection]
       exporters: [dataverse]
 ```
 
@@ -213,37 +188,25 @@ Notes verified against exporterhelper v0.159.0 sources:
   `pkg.exporterhelper.queueBatchEnabled` feature gate; an explicit `batch:`
   section in config activates it regardless.
 - `min_size` must be ≤ `queue_size` (validated).
-- `wait_for_result` is not used (and is invalid with persistent queues
-  anyway); with the default `false`, producers are acknowledged at enqueue
-  time — preserving today's producer-insulation semantics.
-- **Measured (spike, 2026-11-24):** the `bytes` sizer counts the serialized
-  **protobuf** request size. JSON expansion over proto measured 1.6×
-  (incompressible) to 5.9× (pathological control-character-heavy strings);
-  after gzip the TAR is typically *smaller* than proto, worst case ≈ JSON
-  + framing. Conservative worst case TAR ≈ 6× sizer-measured bytes, so
-  `max_size: 4 MiB` keeps the worst-case TAR at ~24% of the 100 MiB payload
-  cap; `min_size: 2 MiB` keeps a non-degenerate batch band.
+- With `wait_for_result: false`, producers do not wait for the upload.
+- The byte sizer measures protobuf, not JSON or compressed archive size.
+  Test payloads expanded by 1.6–5.9× when serialized as JSON. This informed
+  the 2 MiB batching threshold and 4 MiB split size; the exporter still
+  checks each compressed archive against the upload limit.
 
-### Push function (the only new logic)
+### Packaging and upload
 
 For each flushed batch:
 
-1. Serialize the batch's trace requests to JSON (same marshaller semantics
-   as FileExporter's `format: json` — one JSON object per
-   `ExportTraceServiceRequest`).
-2. Wrap the objects in one top-level JSON array.
-3. Build one gzip TAR with member name `agentic-v1/traces-<UTC
-   timestamp>.json` — the exact member shape Dataverse receives today.
-4. POST multipart to the ingress URL with `Authorization: Bearer <token>`,
-   `User-Agent` carrying the cluster ID, and the service-specific content
-   type.
-5. Accept on HTTP 202 + `request_id`; classify everything else per
-   [Error classification](#error-classification).
-
-Batches larger than the payload cap after packaging are split by the
-queue's `max_size` before this point; the push function rejects (rather
-than truncates) anything that still exceeds the cap — an observable,
-counted drop, never a silent partial record.
+1. Serialize the batch as native OTLP JSON and wrap it in a one-element array.
+2. Write the array as the sole member of a gzip-compressed TAR archive. The
+   member name is `agentic-v1/traces-<UTC timestamp>-<sequence>.json`.
+3. Check the archive size. If it exceeds the configured limit, count and
+   discard the batch; do not truncate it.
+4. POST the archive as multipart form data with the service-specific content
+   type, the pull-secret bearer credential, and the cluster ID in the user agent.
+5. Treat HTTP 202 with a `request_id` as success. See [Error classification](#error-classification)
+   for retry and drop behavior.
 
 The 100 MiB cap is an assumption mirroring the ingress service's
 `DefaultMaxSize` (100 MB), not a published contract: the ingress does
@@ -254,21 +217,16 @@ limits are deployment configuration on the ingress side
 guidelines). The authoritative runtime signal is the HTTP 413 response,
 classified as a permanent counted drop (`reason=http_413`).
 
-### Fan-out isolation (queue-full swallow)
+### What happens when the queue is full?
 
-The exporter returned by `exporterhelper` is wrapped in a decorator:
-when `ConsumeTraces` fails with `exporterhelper.ErrQueueIsFull` (queue at
-capacity with `block_on_overflow: false`), the wrapper records the
-refused batch's span count in the drop counter (`reason=queue_full`),
-logs at warning level rate-limited (at most once per minute), and
-returns `nil`. The fan-out — producers and every other trace consumer —
-never sees the dataverse exporter's queue or upload problems, and no
-consumer receives duplicates caused by our failures. Trade-off
-accepted: a refused batch is dropped definitively instead of getting a
-second chance via producer retry; the 128 MiB queue buffers many
-minutes of inflow, so this only triggers in outages that would exhaust
-the retry budget regardless. All other errors pass through unchanged
-(retryable, surfaced to `retry_on_failure`).
+The same producer request can feed both Dataverse and a trace backend. If
+the Dataverse queue rejects a batch and the receiver returns an error, the
+producer may resend data the backend has already accepted.
+
+The exporter therefore handles `exporterhelper.ErrQueueIsFull` locally: it
+drops the refused batch, increments the drop counters with `reason=queue_full`,
+logs at most one warning per minute, and returns success. Other enqueue
+errors pass through unchanged.
 
 ### Error classification
 
@@ -279,55 +237,37 @@ identical credentials cannot succeed); retryable errors go to
 | Condition | Class | Counter reason |
 |---|---|---|
 | Network error, timeout, HTTP 408, 429, 5xx | Retryable | — |
-| HTTP 401 | Retryable, with the rate-limited token-refresh path (deviation from the alternative design, which made 401 permanent — our refresh path makes rotation self-heal without dropping) | — |
+| HTTP 401 | Retryable. Refresh the token if the refresh interval has elapsed. | — |
 | API-server errors while loading credentials | Retryable (transient API-server unavailability) | — |
 | Pull-secret has no `cloud.openshift.com` entry, malformed `.dockerconfigjson` | Permanent | `credentials` |
 | HTTP 403 and other 4xx (including 413) | Permanent | `http_<status>` |
-| Packaged TAR above the payload cap | Permanent (already implemented) | `payload_too_large` |
-| Queue full | Permanent at the wrapper (already implemented) | `queue_full` |
+| Packaged TAR above the payload cap | Drop without retry | `payload_too_large` |
+| Queue full | Drop at enqueue | `queue_full` |
 
-Mechanics: the client wraps permanent classes with
-`consumererror.NewPermanent` carrying a reason; `consumeTraces` checks the
-marker, records the drop with its reason, and returns nil — the same
-counted-drop path as oversized batches, so **all** drops are visible in
-`otelcol_dataverse_exporter_dropped_*` with a reason attribute (with the
-doc.go caveat that the standard `sent_spans` metric counts them as sent).
-The 1h retry budget means an ingress outage of up to an hour ships late
-rather than dropping; beyond that, batches drop after the budget is
-exhausted.
+The exporter counts permanent failures and queue refusals by reason. A
+permanent failure inside the upload function returns success to exporterhelper,
+so `sent_spans` includes those spans. A queue refusal never reaches the upload
+function. Retry exhaustion is reported by `otelcol_exporter_send_failed_spans`,
+not the Dataverse drop counters.
 
-### Authentication (ported from Python, once)
+### Authentication
 
-- **Token:** read `openshift-config/pull-secret` via the Kubernetes API,
-  extract `auths["cloud.openshift.com"].auth`. **Identity:** read
-  `config.openshift.io/v1` `clusterversions` `version` → `spec.clusterID`.
-- Use the pod's projected ServiceAccount token with a minimal REST client
-  (plain HTTP against the API server; **not** client-go — keep the
-  dependency surface small).
-- **Lifecycle (amended 2026-11-24, replacing fail-fast):** structural
-  prerequisites — in-cluster env vars and the ServiceAccount `ca.crt` —
-  are checked at exporter creation and fail fast (a deployment missing
-  them is fundamentally miswired and cannot self-heal). Live credentials
-  (pull-secret token, cluster ID) are resolved **lazily on the first
-  upload attempt**, never at startup: the Collector shares its process
-  with the templog and trace-backend pipelines, and a credential problem
-  must not stop those. If the pull-secret is removed after deployment,
-  the Collector restarts fine and the exporter fails uploads with
-  counted, retryable errors instead of crash-looping.
-- **Caching and rotation:** both values are cached after first read. The
-  SA token is re-read from the local projected file on every API call
-  (free, rotation-safe). The pull-secret token is re-read only on an
-  ingress 401, **rate-limited to at most one re-read per minute**: within
-  the window a 401 fails the attempt immediately (re-sending a
-  known-stale token is guaranteed waste) and exporterhelper backoff
-  brings the next attempt after the window. This avoids both API-server
-  chatter under sustained auth failure and coupling healthy uploads to
-  API-server availability (a per-attempt read would make an API-server
-  outage block uploads even when ingress is healthy).
-- The required RBAC already exists and is bound to the Collector's
-  ServiceAccount today (it was created for the sidecar, same pod SA): read
-  `openshift-config` pull-secret (RoleBinding-scoped), get
-  `clusterversions`. No RBAC change.
+The Collector uses its projected ServiceAccount token and CA to make HTTPS
+requests to the Kubernetes API. It reads the upload token from
+`auths["cloud.openshift.com"].auth` in `openshift-config/pull-secret` and the
+cluster ID from `ClusterVersion/version.spec.clusterID`. The sidecar uses the
+same ServiceAccount, so these reads need no new RBAC permissions.
+
+At startup, the exporter requires the in-cluster API address and CA file.
+It reads the pull-secret and cluster ID on the first upload rather than at
+startup, so an unavailable secret does not prevent the other pipelines from
+starting. It caches both values and reads the projected ServiceAccount token
+from disk for each API call.
+
+An ingress 401 can trigger a pull-secret refresh and one more upload attempt.
+Within the one-minute refresh interval, the exporter instead returns the
+401 to exporterhelper for backoff. The interval limits API reads; it is not
+a deadline for recovery after credential rotation.
 
 ### Egress proxy and TLS
 
@@ -343,64 +283,29 @@ exporters:
     timeout: 30s
 ```
 
-- **Proxy:** `confighttp` uses `http.ProxyFromEnvironment`, honoring the
-  `HTTPS_PROXY`/`HTTP_PROXY`/`NO_PROXY` env vars the operator already
-  injects into the Collector container (`GetProxyEnvVars()`). Proxy parity
-  with today's sidecar (`requests`-based) is automatic; no new operator
-  wiring. The operator's existing Squid-based e2e proxy test extends to
-  the new exporter.
-- **TLS:** `ca_file`/`ca_pem` are supported knobs, addressing a gap that
-  exists today — the sidecar has no custom-CA provision and relies on the
-  UBI system trust store, so MITM re-signing proxies cannot work. Whether
-  the operator auto-wires a trusted CA bundle (the
-  `config.openshift.io/inject-trusted-cabundle` ConfigMap pattern) is an
-  operator-wiring decision recorded in the work breakdown. Generated
-  configuration never sets `insecure_skip_verify`, and the exporter's
-  config validation rejects it.
-- **TLS versions and cipher suites:** the full standard `configtls` knob
-  set is available on the same `tls:` block — `min_version` (default
-  TLS 1.2, enforced by configtls), `max_version` (default: Go
-  `crypto/tls` maximum), `cipher_suites` (IANA names, validated at
-  startup), `curve_preferences`, and `include_insecure_cipher_suites`
-  (never generated; rejected by validation, same policy as
-  `insecure_skip_verify`). **What the operator generates into these knobs
-  is an operator-wiring decision, deliberately not fixed here** (see the
-  work breakdown): generating defaults is simplest; deriving from the
-  OpenShift TLS security profile (`ResolveTLSProfile` + `CipherCodes`,
-  as the operator already does for other TLS-exposing operands) is the
-  profile-compliant alternative. The exporter's contract is the knob set
-  plus validation — either operator choice works without exporter
-  changes. On FIPS builds (cf. OLS-4860), the `requirefips`-gated
-  crypto/tls behavior restricts curves/ciphers automatically; config can
-  further constrain but never weaken a FIPS deployment.
-- **Kubernetes API calls** (pull-secret, ClusterVersion) use the
-  in-cluster service network, which is excluded from proxying via
-  `NO_PROXY` semantics; they use the pod's projected SA token over the
-  same client.
-- **IP family independence (audited 2026-11-24):** the exporter MUST NOT
-  embed assumptions that break on either IPv4-only or IPv6-only OCP
-  clusters. The only host:port composition uses `net.JoinHostPort`
-  (brackets IPv6); the ingress endpoint is a DNS name resolved by
-  `net/http`; proxy handling supports IPv6 literals and CIDRs in
-  `NO_PROXY`; the API client is never proxied. One known sharp edge,
-  accepted: an unbracketed IPv6-literal `endpoint` in a hand-edited
-  ConfigMap passes validation but fails at request time (the operator
-  generates a DNS endpoint, so this is unreachable in generated config).
+- **Ingress proxy:** the HTTP client honors `HTTPS_PROXY`, `HTTP_PROXY`, and
+  `NO_PROXY` from the Collector environment. Exercise this path in the
+  operator's Squid-based proxy test.
+- **Ingress TLS:** use `ca_file` or `ca_pem` when a proxy signs certificates
+  with a private CA. Validation must reject `insecure_skip_verify` and
+  `include_insecure_cipher_suites`.
+- **TLS policy:** protocol versions, cipher suites, and curve preferences use
+  the standard `configtls` settings. The operator must decide whether to use
+  defaults or derive settings from the OpenShift TLS security profile, and
+  whether to mount the injected trusted CA bundle.
+- **Kubernetes API:** a separate HTTPS client trusts the projected
+  ServiceAccount CA and connects directly, without the egress proxy.
+- **IPv4 and IPv6:** the exporter uses `net.JoinHostPort` for the Kubernetes
+  service address. The operator uses a DNS name for ingress. Enclose an IPv6
+  literal in brackets if specifying an endpoint manually.
 
 ### Gating
 
-- **Collection gate (unchanged):** `transcriptsDisabled` false/absent
-  enables the `traces/data_collection` pipeline. Opt-out removes the
-  pipeline and the exporter.
-- **Credential gate:** the operator deploys the exporter config only when
-  the telemetry credentials are available (mirroring today's sidecar
-  gate). At runtime the exporter itself resolves credentials lazily (see
-  Authentication) — a missing or removed pull-secret degrades to counted,
-  retryable upload errors rather than blocking Collector startup. Unlike
-  today, with no files there is no local collection while credentials are
-  absent — accepted consequence of removing the spool (data is not
-  collected on clusters that cannot upload; previously it was collected
-  and then lost on rotation).
+The operator configures the exporter only when `transcriptsDisabled` is false
+or unset **and** the pull-secret contains a cloud credential. Otherwise it
+omits the collection pipeline; there is no local spool. If credentials become
+unavailable after deployment, uploads follow the [error classification](#error-classification)
+above without preventing the other pipelines from starting.
 
 ### Failure and loss semantics
 
@@ -408,33 +313,28 @@ exporters:
 |---|---|
 | Partial records | Eliminated by construction — no file appends, no line framing; batches are whole in-memory requests. |
 | Rotation races | Eliminated — no rotation, no active file. |
-| Duplicate data | At-least-once: a batch can be uploaded whose success response was lost, then retried. Downstream dedup (already required, ADR 0043) handles it. No ledger is needed because the queue, not filenames, tracks delivery state. |
-| Omitted data | Bounded: (a) queue full → counted drop (`queue_full`); (b) retry budget (1h) exhausted on retryable errors → batch dropped, counted; (c) permanent errors (bad credentials, 4xx) → counted drop, no retry; (d) Collector container restart → queued-but-unsent batches lost (≤ ~1 flush interval + in-flight); (e) pod replacement → everything unsent lost. All are small, bounded windows of non-mission-critical telemetry. |
-| Ingress outage ≤ 1h | Retries with backoff (30s→5m) | Shipped late |
+| Duplicate data | If ingress accepts an upload but the response is lost, a retry can deliver the batch again. Dataverse deduplicates on content. |
+| Omitted data | A full queue drops new arrivals. Permanent failures and exhausted retries drop the affected batch. Restarts lose all unsent memory-resident data, with no one-flush-interval age bound. |
+| Ingress outage | Admitted batches retry with backoff (30s→5m) for up to 1h per batch. Queue capacity can be exhausted before that budget. |
 | Acknowledgements | HTTP 202 + `request_id` per upload, logged; request IDs are not persisted locally (no dedup role for them downstream — Dataverse dedups on content). |
-| Restarts | Memory-only queue: a restart costs at most the unsent queue contents. This is strictly less durable than today across *container* restarts (today's spool survives them), accepted per the not-mission-critical decision; switching to `file_storage` later is a one-line config change if field data justifies it. |
-| Bounded storage/retention | `queue_size: 128 MiB` in `sizer: bytes` bounds memory. No disk. Volume budget previously reserved for the spool (500 MiB) is freed. |
-| Credentials removed/absent after deployment | Lazy resolution: if the credential *shape* is broken (no cloud entry, malformed secret) uploads drop permanently and counted (`reason=credentials`); if the API server is merely unreachable, errors are retryable within the 1h budget. Collector, templog, and trace-backend pipelines keep running. Token rotation self-heals within ≤1 minute via the rate-limited refresh. |
-| Producer-visible failures | None by design (amended): a full queue is swallowed at the exporter — counted drop (`reason=queue_full`), rate-limited log, success returned — so the fan-out never surfaces the dataverse exporter's problems as OTLP errors. Without the swallow, a full queue would return `ErrQueueIsFull` up the fan-out; the receiver maps it to gRPC UNAVAILABLE / HTTP 503, the producer retries the whole request, and **other consumers receive duplicates**. Today's FileExporter has the same class of coupling (rule 33); this design removes it. |
+| Restarts | A container restart loses queued and in-flight batches. The previous `emptyDir` spool survived a container restart but not pod replacement. |
+| Storage | The queue holds up to 128 MiB measured as protobuf. In-flight data and serialization buffers require additional memory. The 500 MiB spool volume is no longer needed. |
+| Credentials | A malformed pull-secret or missing cloud entry drops the batch (`credentials`). A failed API read is retryable. Neither prevents the other pipelines from running. |
+| Producer-visible failures | A full Dataverse queue does not cause a producer retry. See [What happens when the queue is full?](#what-happens-when-the-queue-is-full). |
 
 ### Compatibility
 
-- Record contents inside the TAR are byte-identical to today (same OTLP
-  JSON objects; whitespace/array punctuation only, as today).
-- What changes: array boundaries — one array per queue flush instead of
-  one per rotated backup file; and upload cadence — time/size-driven
-  instead of rotation/poll-driven. Dataverse flattens arrays and dedups on
-  content, so meaning is unaffected, but per rule 41 this still requires
-  the compatibility review sign-off from Dataverse owners before rollout
-  (classification: packaging-only, no record-level change; no
-  schema/data-contract version bump).
+- The exporter preserves OTLP span fields and the JSON-array/TAR format.
+  A queue flush, rather than a rotated file, determines which spans travel
+  together and when they are uploaded. Rule 41 requires Dataverse owner
+  sign-off on this packaging change before rollout.
 - Schema URLs and GenAI convention pins (v1.41.0) pass through untouched.
 
 ## Validation and test plan
 
 - **Unit (collector):** push function — array/TAR construction matches the
   Python consumer's output shape (golden files generated from both),
-  202/`request_id` parsing, non-202 → retryable error, payload-cap
+  202/`request_id` parsing, permanent versus retryable response handling, payload-cap
   rejection, auth client token/clusterID extraction and 401 re-read,
   config validation (queue/batch rules, feature-gate-independent batch
   activation).
@@ -447,7 +347,7 @@ exporters:
 - **Operator tests:** generated config contains the exporter when enabled;
   opt-out removes it; credential-absent omits it; sidecar assets absent;
   RBAC unchanged; all generated-config permutations validated as today.
-- **Verification spikes (pre-implementation):** (1) confirm `bytes` sizer
+- **Batch sizing checks:** (1) confirm `bytes` sizer
   measurement semantics and resulting JSON/TAR expansion factor; (2)
   confirm explicit `batch:` activates batching at v0.159.0 without the
   feature gate; (3) measure a worst-case flush under `max_size` against
@@ -467,7 +367,7 @@ exporters:
 1. **Collector — exporter package** (`lightspeed-otel-collector`): config
    + factory + push function + auth client + packaging; builder-config
    pin; unit and integration tests.
-2. **Verification spikes** (see above) — gate task 3 sizing.
+2. **Sizing:** use the measurements above when configuring the operator.
 3. **Operator — wiring** (`lightspeed-operator`): generate exporter config
    (gates: transcriptsDisabled + credentials); remove sidecar container,
    ConfigMap, data-collection and ledger volumes; keep RBAC; update
@@ -493,34 +393,10 @@ exporters:
    otel` from `lightspeed-to-dataverse-exporter`; revisit `file_storage`
    queue if field data shows restart losses matter.
 
-## Decisions and their owners
+## Remaining rollout checks
 
-| Decision | Owner |
-|---|---|
-| A2 architecture (exporter in Collector, no files) | User (this conversation) |
-| Memory-only queue; 10m flush; latency non-critical | User |
-| Not mission critical; bounded loss windows acceptable | User |
-| Dataverse serves RH product analysis only; audit is a different path | User (correction) |
-| `block_on_overflow: false`, `num_consumers: 2`, 128 MiB queue, 2/4 MiB batch sizes (spike-adjusted from 4/16) | Assistant proposal, tunable, user overridable at review |
-| Wire format preserved (array/TAR/member naming) | Assistant proposal (avoids downstream change) |
-| Minimal REST client, no client-go; token re-read on 401/403 | Assistant call (builder may revisit) |
-| Credential lifecycle (amended): lazy live credentials at first upload, structural checks fail fast; 401-triggered token refresh rate-limited to 1/min, no re-send of known-stale token | User (amendment after comparing with the alternative design) |
-| Fan-out isolation (amended): queue-full swallowed at the exporter wrapper — counted drop (`queue_full`), rate-limited log, nil returned; producers and other consumers never see dataverse problems | User (amendment after comparing with the alternative design) |
-| Error classification (amended): permanent vs retryable — bad credentials and 4xx (except 401/408/429) are counted permanent drops; 401 stays retryable via the rate-limited refresh; retry budget extended 10m → 1h (30s/5m backoff) | User (amendment after comparing with the alternative design) |
-| Single coordinated rollout; no transition mode | Assistant call |
-
-## Open items for the builder
-
-- Exact `bytes`-sizer semantics and expansion factor (spike).
-- Final queue/batch numbers after the spike (stay ≤ ~⅓ of the 100 MiB
-  payload cap after JSON/TAR expansion).
-- Go module layout and test golden-file strategy for TAR byte-compatibility
-  with the Python consumer's output.
-- Member-name uniqueness: flushes within the same millisecond need a suffix
-  or monotonic sequence so two TAR members never share a name.
-- Pod memory: `queue_size: 128 MiB` plus serialization buffers must fit the
-  Collector container's requests/limits; adjust resources or queue size in
-  the operator task.
-- Whether the exporter emits a startup warning when credentials resolve
-  but the ingress URL is unreachable (recommended: yes, health-check
-  surface stays with the existing collector health endpoint).
+- Confirm that the queue, in-flight batches, and serialization buffers fit
+  the Collector container's memory limit. Adjust the queue size or pod
+  resources in the operator configuration if necessary.
+- Compare the exported archives with sidecar fixtures and confirm that
+  Dataverse parses them before enabling the new pipeline in a release.
