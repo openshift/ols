@@ -195,9 +195,9 @@ exporters:
         flush_timeout: 10m
     retry_on_failure:
       enabled: true
-      initial_interval: 5s
-      max_interval: 30s
-      max_elapsed_time: 10m
+      initial_interval: 30s
+      max_interval: 5m
+      max_elapsed_time: 1h
 
 service:
   pipelines:
@@ -237,8 +237,8 @@ For each flushed batch:
 4. POST multipart to the ingress URL with `Authorization: Bearer <token>`,
    `User-Agent` carrying the cluster ID, and the service-specific content
    type.
-5. Accept on HTTP 202 + `request_id`; treat anything else as a retryable
-   error (surfaced to `retry_on_failure`).
+5. Accept on HTTP 202 + `request_id`; classify everything else per
+   [Error classification](#error-classification).
 
 Batches larger than the payload cap after packaging are split by the
 queue's `max_size` before this point; the push function rejects (rather
@@ -260,6 +260,32 @@ second chance via producer retry; the 128 MiB queue buffers many
 minutes of inflow, so this only triggers in outages that would exhaust
 the retry budget regardless. All other errors pass through unchanged
 (retryable, surfaced to `retry_on_failure`).
+
+### Error classification
+
+Permanent errors are counted drops (never retried — identical bytes or
+identical credentials cannot succeed); retryable errors go to
+`retry_on_failure` with backoff (30s initial, 5m max, **1h budget**).
+
+| Condition | Class | Counter reason |
+|---|---|---|
+| Network error, timeout, HTTP 408, 429, 5xx | Retryable | — |
+| HTTP 401 | Retryable, with the rate-limited token-refresh path (deviation from the alternative design, which made 401 permanent — our refresh path makes rotation self-heal without dropping) | — |
+| API-server errors while loading credentials | Retryable (transient API-server unavailability) | — |
+| Pull-secret has no `cloud.openshift.com` entry, malformed `.dockerconfigjson` | Permanent | `credentials` |
+| HTTP 403 and other 4xx (including 413) | Permanent | `http_<status>` |
+| Packaged TAR above the payload cap | Permanent (already implemented) | `payload_too_large` |
+| Queue full | Permanent at the wrapper (already implemented) | `queue_full` |
+
+Mechanics: the client wraps permanent classes with
+`consumererror.NewPermanent` carrying a reason; `consumeTraces` checks the
+marker, records the drop with its reason, and returns nil — the same
+counted-drop path as oversized batches, so **all** drops are visible in
+`otelcol_dataverse_exporter_dropped_*` with a reason attribute (with the
+doc.go caveat that the standard `sent_spans` metric counts them as sent).
+The 1h retry budget means an ingress outage of up to an hour ships late
+rather than dropping; beyond that, batches drop after the budget is
+exhausted.
 
 ### Authentication (ported from Python, once)
 
@@ -360,11 +386,12 @@ exporters:
 | Partial records | Eliminated by construction — no file appends, no line framing; batches are whole in-memory requests. |
 | Rotation races | Eliminated — no rotation, no active file. |
 | Duplicate data | At-least-once: a batch can be uploaded whose success response was lost, then retried. Downstream dedup (already required, ADR 0043) handles it. No ledger is needed because the queue, not filenames, tracks delivery state. |
-| Omitted data | Bounded: (a) queue full with `block_on_overflow: false` → enqueue fails, counted in exporter drop metrics, lost; (b) retry budget exhausted → batch dropped, counted; (c) Collector container restart → queued-but-unsent batches lost (≤ ~1 flush interval + in-flight); (d) pod replacement → everything unsent lost. All are small, bounded windows of non-mission-critical telemetry. |
+| Omitted data | Bounded: (a) queue full → counted drop (`queue_full`); (b) retry budget (1h) exhausted on retryable errors → batch dropped, counted; (c) permanent errors (bad credentials, 4xx) → counted drop, no retry; (d) Collector container restart → queued-but-unsent batches lost (≤ ~1 flush interval + in-flight); (e) pod replacement → everything unsent lost. All are small, bounded windows of non-mission-critical telemetry. |
+| Ingress outage ≤ 1h | Retries with backoff (30s→5m) | Shipped late |
 | Acknowledgements | HTTP 202 + `request_id` per upload, logged; request IDs are not persisted locally (no dedup role for them downstream — Dataverse dedups on content). |
 | Restarts | Memory-only queue: a restart costs at most the unsent queue contents. This is strictly less durable than today across *container* restarts (today's spool survives them), accepted per the not-mission-critical decision; switching to `file_storage` later is a one-line config change if field data justifies it. |
 | Bounded storage/retention | `queue_size: 128 MiB` in `sizer: bytes` bounds memory. No disk. Volume budget previously reserved for the spool (500 MiB) is freed. |
-| Credentials removed/absent after deployment | Lazy resolution: uploads fail with counted, retryable errors until the retry budget is exhausted; Collector, templog, and trace-backend pipelines keep running. Token rotation self-heals within ≤1 minute via the rate-limited refresh. |
+| Credentials removed/absent after deployment | Lazy resolution: if the credential *shape* is broken (no cloud entry, malformed secret) uploads drop permanently and counted (`reason=credentials`); if the API server is merely unreachable, errors are retryable within the 1h budget. Collector, templog, and trace-backend pipelines keep running. Token rotation self-heals within ≤1 minute via the rate-limited refresh. |
 | Producer-visible failures | None by design (amended): a full queue is swallowed at the exporter — counted drop (`reason=queue_full`), rate-limited log, success returned — so the fan-out never surfaces the dataverse exporter's problems as OTLP errors. Without the swallow, a full queue would return `ErrQueueIsFull` up the fan-out; the receiver maps it to gRPC UNAVAILABLE / HTTP 503, the producer retries the whole request, and **other consumers receive duplicates**. Today's FileExporter has the same class of coupling (rule 33); this design removes it. |
 
 ### Compatibility
@@ -447,6 +474,7 @@ exporters:
 | Minimal REST client, no client-go; token re-read on 401/403 | Assistant call (builder may revisit) |
 | Credential lifecycle (amended): lazy live credentials at first upload, structural checks fail fast; 401-triggered token refresh rate-limited to 1/min, no re-send of known-stale token | User (amendment after comparing with the alternative design) |
 | Fan-out isolation (amended): queue-full swallowed at the exporter wrapper — counted drop (`queue_full`), rate-limited log, nil returned; producers and other consumers never see dataverse problems | User (amendment after comparing with the alternative design) |
+| Error classification (amended): permanent vs retryable — bad credentials and 4xx (except 401/408/429) are counted permanent drops; 401 stays retryable via the rate-limited refresh; retry budget extended 10m → 1h (30s/5m backoff) | User (amendment after comparing with the alternative design) |
 | Single coordinated rollout; no transition mode | Assistant call |
 
 ## Open items for the builder
