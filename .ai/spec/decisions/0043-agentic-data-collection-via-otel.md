@@ -4,6 +4,8 @@
 
 Accepted under OLS-4246. This is the target architecture, not a report of delivery. Status reviewed 2026-10-03: Collector integration, sandbox producer work, operator first-rollout wiring, and the Dataverse OTel consumer remained proposals rather than confirmed delivery. The first operator rollout is local-file-only; Dataverse consumption and its operator wiring are later work. This record does not establish a full operator/OLSConfig rollout or production end-to-end delivery. Agentic operands remain subject to ADR 0037's OCP ≥ 5.0/v2 support boundary.
 
+[PLANNED: OLS-4493] The file transport part of this record (FileExporter, the `data-collection` volume, and the Dataverse exporter sidecar in `otel` mode) shipped and is superseded by [0052](0052-in-collector-dataverse-exporter.md). Trace-only collection, exact service-name routing, the native OTLP payload, and downstream ownership still apply.
+
 ## Context
 
 Agentic OLS needs product-analysis data for adoption, outcomes, model and tool behavior, and complete ordered transcripts. Agentic applications already produce correlated OTLP traces. Classic OLS has a separate app-server transcript-file exporter path.

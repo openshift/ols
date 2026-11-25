@@ -154,7 +154,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Telemetry pipeline (receivers, processors, exporters) | lightspeed-otel-collector | `what/pipeline.md` |
 | Spoke-to-hub telemetry forwarding | lightspeed-otel-collector | `what/pipeline.md` |
 | Cluster identity labeling | lightspeed-otel-collector | `what/pipeline.md` |
-| Agentic product trace export (native FileExporter trace-batch JSONL; planned, not shipped) | lightspeed-otel-collector | [PLANNED: OLS-4246] parent [collection contract](../what/agentic-data-collection.md); target child `what/agentic-data-collection.md`, `what/pipeline.md`. |
+| Agentic product trace export (in-Collector `dataverse` exporter; replaces the released FileExporter branch) | lightspeed-otel-collector | [PLANNED: OLS-4493] parent [collection contract](../what/agentic-data-collection.md), [decision 0052](../decisions/0052-in-collector-dataverse-exporter.md); child `what/data-collection.md`, `what/pipeline.md`. |
 
 ## Agentic OLS — Event Adapter (Prototype)
 
@@ -191,8 +191,8 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Compliance audit logging | `what/audit-logging.md` | agentic-operator, agentic-sandbox, service, operator, agentic-console |
 | Provider-egress TLS and CA handoff | `docs/superpowers/specs/2026-09-20-provider-egress-tls.md` | operator (`what/tls.md`), agentic-operator (`what/sandbox-execution.md`, `docs/inter-operator-handoff-design.md`), agentic-sandbox (`what/configuration.md`) |
 | Temporary audit log storage | `what/templog.md` | lightspeed-otel-collector, operator, agentic-operator, agentic-sandbox |
-| Agentic product data collection | [PLANNED: OLS-4246] [canonical collection contract](../what/agentic-data-collection.md) (target first stage: local FileExporter trace-batch JSONL; later: rotated-file Dataverse OTel consumer and operator wiring) | operator, agentic-operator, agentic-sandbox, otel-collector, lightspeed-core/lightspeed-to-dataverse-exporter |
-| Dataverse OTel rotated-file consumer (later rollout) | [PLANNED: OLS-4246] [canonical collection contract](../what/agentic-data-collection.md) | lightspeed-core/lightspeed-to-dataverse-exporter; lightspeed-operator (consumer mount and sidecar wiring planned) |
+| Agentic product data collection | [PLANNED: OLS-4493] [canonical collection contract](../what/agentic-data-collection.md) (in-Collector `dataverse` exporter uploads directly to ingress; replaces the FileExporter branch and `otel` sidecar); [decision 0052](../decisions/0052-in-collector-dataverse-exporter.md) | operator, agentic-operator, agentic-sandbox, otel-collector, lightspeed-core/lightspeed-to-dataverse-exporter |
+| Dataverse exporter `otel` mode removal | [PLANNED: OLS-4493] [canonical collection contract](../what/agentic-data-collection.md) | lightspeed-core/lightspeed-to-dataverse-exporter (after the operator release that stops using it) |
 | Multicluster operations | `what/multicluster-ops.md` | hub, hub-ui, agentic-operator, alerts-adapter |
 | Alerts-adapter multicluster support | `what/alerts-adapter-multicluster.md` | alerts-adapter, hub, operator |
 | Multicluster testing | `what/multicluster-testing.md` | hub, agentic-operator, alerts-adapter, hub-ui |
