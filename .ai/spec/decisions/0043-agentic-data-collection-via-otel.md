@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted under OLS-4246. This is the target architecture, not a report of delivery. Status reviewed 2026-10-03: Collector integration, sandbox producer work, operator first-rollout wiring, and the Dataverse OTel consumer remained proposals rather than confirmed delivery. The first operator rollout is local-file-only; Dataverse consumption and its operator wiring are later work. This record does not establish a full operator/OLSConfig rollout or production end-to-end delivery. Agentic operands remain subject to ADR 0037's OCP ≥ 5.0/v2 support boundary.
+Accepted under OLS-4246. This is the target architecture, not a report of delivery. The file-transport part (FileExporter spool, rotated-file consumer, sidecar wiring) is superseded by [0052](0052-dataverse-exporter-in-collector.md); the OTLP trace-path routing, opt-out collection, producer contract, and downstream ownership below remain in force. Status reviewed 2026-10-03: Collector integration, sandbox producer work, operator first-rollout wiring, and the Dataverse OTel consumer remained proposals rather than confirmed delivery. The first operator rollout is local-file-only; Dataverse consumption and its operator wiring are later work. This record does not establish a full operator/OLSConfig rollout or production end-to-end delivery. Agentic operands remain subject to ADR 0037's OCP ≥ 5.0/v2 support boundary.
 
 ## Context
 

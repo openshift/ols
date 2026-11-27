@@ -108,7 +108,7 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 
 | # | Decision | Repos |
 |---|---|---|
-| [0043](0043-agentic-data-collection-via-otel.md) | Target architecture: first stage is local FileExporter trace-batch JSONL; later Dataverse OTel consumption and operator wiring; staged rollout and integration limits are documented in the ADR | operator, agentic-operator, agentic-sandbox, collector, lightspeed-core/lightspeed-to-dataverse-exporter |
+| [0043](0043-agentic-data-collection-via-otel.md) | Target architecture: first stage is local FileExporter trace-batch JSONL; later Dataverse OTel consumption and operator wiring; staged rollout and integration limits are documented in the ADR; file transport superseded by [0052](0052-dataverse-exporter-in-collector.md) | operator, agentic-operator, agentic-sandbox, collector, lightspeed-core/lightspeed-to-dataverse-exporter |
 
 ### Operand Network Policies (2026-09)
 
@@ -147,3 +147,9 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 |---|---|---|
 | [0050](0050-native-go-fips.md) | Native Go FIPS 140-3 provider (`GOFIPS140=certified`, `//go:debug fips140=on`, ubi9-micro); byok-go keeps non-crypto CGo | operator, agentic-operator, hub, collector, alerts-adapter, rag-content |
 | [0051](0051-x86-64-v2-isa-level.md) | Build-time x86-64-v2 ISA verification for all Go binaries (`check-isa-level`, `GOAMD64=v2`); replaces ld.so enforcement lost to static linking | operator, agentic-operator, hub, collector, alerts-adapter, rag-content |
+
+### Data Collection (2026-11)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0052](0052-dataverse-exporter-in-collector.md) | `dataverse` exporter inside the Collector pushes batched traces directly to the Red Hat ingress (memory queue, 10m flush, lazy credentials, permanent-vs-retryable classification, fan-out isolation); supersedes the file-transport part of 0043 | collector, operator, lightspeed-core/lightspeed-to-dataverse-exporter |
