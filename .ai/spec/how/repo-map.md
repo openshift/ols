@@ -101,6 +101,7 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | --- | --- | --- |
 | Batch agent input/result contract (ConfigMap/Pod/Result CR) | lightspeed-agentic-sandbox | `what/run-api.md` |
 | LLM provider contract (Claude, Gemini, OpenAI) | lightspeed-agentic-sandbox | `what/provider-contract.md` |
+| LiteLLM Proxy compatibility | lightspeed-agentic-sandbox | [PLANNED: OLS-3663] Use the existing OpenAI-compatible route with a customer-managed proxy, no new provider type, and the same E2E suite in Konflux. See the [design](../../../docs/superpowers/specs/2026-11-26-ols-3663-litellm-proxy-design.md). |
 | Configuration (env vars, provider selection) | lightspeed-agentic-sandbox | `what/configuration.md` |
 | Tool-result prompt-injection inspection on all implemented DeepAgents routes, including the sandbox-only Azure input-filter policy | lightspeed-agentic-sandbox | Parent `what/tool-result-inspection.md` (Azure exception: rule 44a; controlled diagnostics: rules 99a, 103a); child `what/provider-contract.md`, `what/configuration.md` |
 | Tool-output redaction, native-span boundary and per-reply UI signal | lightspeed-agentic-sandbox, lightspeed-agentic-operator, lightspeed-agentic-console | [PLANNED: OLS-3939] Parent `what/tool-output-redaction.md`, `what/tool-output-redaction-agentic.md`; child specs align during implementation |
