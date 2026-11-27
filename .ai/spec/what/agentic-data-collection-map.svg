@@ -1,111 +1,73 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="1070" viewBox="0 0 1480 1070" role="img" aria-labelledby="title desc">
-  <title id="title">Agentic data collection — current plan, not yet shipped</title>
-  <desc id="desc">Planned first rollout: standard Agentic operator and sandbox source spans enter a shared OTLP Collector. A configured backend branch alone uses batching. An exact service-name route without batching writes native OTLP trace-batch JSONL to a size-rotated FileExporter on a 500Mi emptyDir; there is no upload or Dataverse sidecar in the first rollout. A dashed deferred path shows a future Dataverse exporter sidecar reading only rotated backups read-only, keeping its writable ledger outside the source, packaging each backup as one gzip TAR member containing an array of intact batch objects, and handing archives to downstream SQL reconstruction. Classic export and compliance logs remain separate and unchanged.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc" font-family="sans-serif">
+  <title id="title">Agentic data collection — planned in-Collector Dataverse export (OLS-4493)</title>
+  <desc id="desc">Agentic operator and sandbox send standard OTLP traces to the shared Collector. A configured backend branch uses its own batch processor. An exact service-name route without a batch processor sends product traces to the dataverse exporter, which batches in memory (4 MiB or 5 minutes, 32 MiB queue, 1 hour retry) and uploads one gzip TAR per batch to the Red Hat ingress service through the cluster-wide proxy with the OpenShift TLS profile. The exporter reads the pull-secret token and cluster ID through the Kubernetes API. Queue-full and upload failures are not returned to producers or other consumers. No trace files, volumes, or sidecar exist. Classic export and compliance logs remain separate and unchanged.</desc>
   <defs>
     <style>
-      .bg{fill:#f4f1ea}.current{fill:#edf7f3;stroke:#087f6b;stroke-width:2}.deferred{fill:#f7f3fb;stroke:#7451a6;stroke-width:2;stroke-dasharray:10 7}
-      .card{fill:#fff;stroke:#5b6971;stroke-width:1.6}.producer{fill:#fff;stroke:#087f6b;stroke-width:2}.collector{fill:#fff;stroke:#3559b7;stroke-width:2}.backend{fill:#eaf0ff;stroke:#3559b7;stroke-width:2}.file{fill:#e7f5f2;stroke:#087f6b;stroke-width:2}.future{fill:#fff;stroke:#7451a6;stroke-width:1.6;stroke-dasharray:7 5}
-      .classic{fill:#eef2f4;stroke:#6b7780;stroke-width:2}.logs{fill:#f1edf7;stroke:#7451a6;stroke-width:2}.status{fill:#fff0df;stroke:#b35c00;stroke-width:1.5}.statusText{font-family:"DejaVu Sans",Arial,sans-serif;font-size:13px;font-weight:700;fill:#723d00;text-anchor:middle}
-      .title{font-family:"DejaVu Sans",Arial,sans-serif;font-size:30px;font-weight:700;fill:#17212b}.subtitle{font-family:"DejaVu Sans",Arial,sans-serif;font-size:15px;fill:#35424d}.sectionTitle{font-family:"DejaVu Sans",Arial,sans-serif;font-size:18px;font-weight:700;fill:#17212b}.sectionNote{font-family:"DejaVu Sans",Arial,sans-serif;font-size:13px;fill:#35424d}
-      .h3{font-family:"DejaVu Sans",Arial,sans-serif;font-size:15px;font-weight:700;fill:#17212b}.body{font-family:"DejaVu Sans",Arial,sans-serif;font-size:14px;fill:#35424d}.small{font-family:"DejaVu Sans",Arial,sans-serif;font-size:12.5px;fill:#35424d}.link{font-family:"DejaVu Sans",Arial,sans-serif;font-size:12.5px;fill:#254f96;text-decoration:underline}
-      .arrow{fill:none;stroke:#17212b;stroke-width:2.4;marker-end:url(#head)}.line{fill:none;stroke:#17212b;stroke-width:2.4}.futureArrow{fill:none;stroke:#7451a6;stroke-width:2.2;stroke-dasharray:9 6;marker-end:url(#headPurple)}
+      .bg{fill:#f4f1ea}.planned{fill:#edf7f3;stroke:#087f6b;stroke-width:2}
+      .producer{fill:#fff;stroke:#087f6b;stroke-width:2}.collector{fill:#fff;stroke:#3559b7;stroke-width:2}.backend{fill:#eaf0ff;stroke:#3559b7;stroke-width:2}
+      .exporter{fill:#e7f5f2;stroke:#087f6b;stroke-width:2}.external{fill:#fff;stroke:#5b6971;stroke-width:1.6}.classic{fill:#eef2f4;stroke:#6b7780;stroke-width:1.6}
+      .h1{font-size:24px;font-weight:700;fill:#1f2a30}.h2{font-size:16px;font-weight:700;fill:#1f2a30}.t{font-size:13px;fill:#2e3b42}.s{font-size:12px;fill:#55636b}
+      .arrow{stroke:#3a474e;stroke-width:2;fill:none;marker-end:url(#a)}.dash{stroke:#5b6971;stroke-width:1.6;fill:none;stroke-dasharray:6 4;marker-end:url(#a)}
     </style>
-    <marker id="head" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#17212b"/></marker>
-    <marker id="headPurple" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7451a6"/></marker>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a474e"/></marker>
   </defs>
+  <rect class="bg" width="1200" height="720"/>
+  <text class="h1" x="40" y="48">Agentic data collection — in-Collector Dataverse export</text>
+  <text class="s" x="40" y="72">PLANNED: OLS-4493 · replaces the released FileExporter branch and the otel-mode sidecar · decision 0052</text>
 
-  <rect class="bg" width="1480" height="1070"/>
-  <text class="title" x="48" y="54">Agentic data collection — current plan</text>
-  <text class="subtitle" x="48" y="82">Native OTLP trace batches to local files first; downstream Dataverse packaging is a later stage.</text>
-  <rect class="status" x="1220" y="34" width="210" height="40" rx="20"/>
-  <text class="statusText" x="1325" y="59">PLANNED · NOT SHIPPED</text>
+  <rect class="planned" x="30" y="92" width="1140" height="470" rx="14"/>
 
-  <rect class="current" x="40" y="112" width="1400" height="410" rx="18"/>
-  <text class="sectionTitle" x="64" y="145">FIRST ROLLOUT · local trace collection</text>
-  <text class="sectionNote" x="730" y="145">No Dataverse sidecar or upload in this rollout</text>
+  <rect class="producer" x="60" y="130" width="230" height="110" rx="10"/>
+  <text class="h2" x="76" y="158">Agentic producers</text>
+  <text class="t" x="76" y="182">agentic-operator + batch sandbox</text>
+  <text class="t" x="76" y="202">standard OTLP trace spans</text>
+  <text class="s" x="76" y="222">no product files, no collection state</text>
 
-  <rect class="producer" x="65" y="169" width="290" height="317" rx="12"/>
-  <text class="h3" x="84" y="202">Agentic producers</text>
-  <text class="small" x="84" y="230">Operator + sandbox: standard OTLP spans</text>
-  <text class="small" x="84" y="250">Sandbox preserves successful raw output</text>
-  <text class="small" x="84" y="270">including results later rejected by</text>
-  <text class="small" x="84" y="290">inspection</text>
-  <text class="small" x="84" y="310">Inspection guards model delivery</text>
-  <text class="small" x="84" y="330">No successful result on native failure</text>
-  <text class="small" x="84" y="350">Collector gate: transcriptsDisabled</text>
-  <text class="small" x="84" y="370">false/unset enables; true disables</text>
-  <text class="small" x="84" y="390">No local-file credential/version gate</text>
-  <text class="small" x="84" y="410">Agentic support remains OCP 5+ (ADR 37)</text>
+  <rect class="collector" x="340" y="120" width="300" height="130" rx="10"/>
+  <text class="h2" x="356" y="148">lightspeed-otel-collector</text>
+  <text class="t" x="356" y="172">otlp receiver → traces pipeline (fan-out)</text>
+  <text class="t" x="356" y="194">routing/data_collection: exact service.name</text>
+  <text class="s" x="356" y="214">lightspeed-agentic-operator | lightspeed-agentic-sandbox</text>
+  <text class="s" x="356" y="234">gate: transcripts enabled + cloud.openshift.com token</text>
 
-  <rect class="collector" x="405" y="169" width="285" height="317" rx="12"/>
-  <text class="h3" x="425" y="202">Shared OTLP Collector</text>
-  <text class="small" x="425" y="235">One shared Agentic trace stream</text>
-  <text class="small" x="425" y="257">Branches to backend and file export</text>
-  <text class="small" x="425" y="279">Backend branch alone uses batch</text>
-  <text class="small" x="425" y="301">File branch has no batch processor</text>
-  <text class="small" x="425" y="323">Native trace batches stay intact</text>
-  <text class="small" x="425" y="345">One batch object per JSONL line</text>
+  <rect class="backend" x="700" y="120" width="440" height="80" rx="10"/>
+  <text class="h2" x="716" y="148">Configured trace backend (independent)</text>
+  <text class="t" x="716" y="172">routing/traces → batch processor → otlp/tracing, own queue</text>
+  <text class="s" x="716" y="190">never sees dataverse exporter failures</text>
 
-  <rect class="backend" x="800" y="169" width="586" height="94" rx="12"/>
-  <text class="h3" x="822" y="201">Backend trace branch</text>
-  <text class="small" x="822" y="229">Configured OTLP backend · batch processor applies here only</text>
-  <text class="small" x="822" y="249">The file route below bypasses this batching step</text>
+  <rect class="exporter" x="340" y="300" width="420" height="230" rx="10"/>
+  <text class="h2" x="356" y="328">dataverse exporter · traces/data_collection</text>
+  <text class="t" x="356" y="354">exporterhelper in-memory queue: bytes sizer, 32 MiB, 1 consumer</text>
+  <text class="t" x="356" y="376">batch flush at 4 MiB or 5 minutes; retry 1 hour with backoff</text>
+  <text class="t" x="356" y="398">ptrace JSON trace-batch object → one-element JSON array</text>
+  <text class="t" x="356" y="420">gzip TAR member agentic-v1/traces-&lt;time&gt;-&lt;hex&gt;.json</text>
+  <text class="t" x="356" y="442">queue full → spans dropped and counted, success returned</text>
+  <text class="t" x="356" y="464">TLS: effective OpenShift profile; CA: injected trusted bundle</text>
+  <text class="t" x="356" y="486">proxy: https_proxy / no_proxy from the Collector environment</text>
+  <text class="s" x="356" y="512">info log per upload: request_id, archive_member, spans, payload_bytes</text>
 
-  <rect class="file" x="800" y="280" width="586" height="206" rx="12"/>
-  <text class="h3" x="822" y="307">Service-name file route · no batch</text>
-  <text class="small" x="822" y="330">resource.service.name = lightspeed-agentic-operator</text>
-  <text class="small" x="822" y="348">or lightspeed-agentic-sandbox · correlation is not a filter</text>
-  <text class="small" x="822" y="366">FileExporter v0.159.0 → /var/lib/lightspeed-data/otel/traces.jsonl</text>
-  <text class="small" x="822" y="384">JSONL: one native OTLP trace-batch object per line</text>
-  <text class="small" x="822" y="402">Collector RW at volume root /var/lib/lightspeed-data · emptyDir 500Mi</text>
-  <text class="small" x="822" y="420">16MiB max file · 16 backups · 1-day backup cleanup · size-only rotation</text>
-  <text class="small" x="822" y="438">FileExporter owns rotation/deletion; cleanup is not an upload acknowledgement</text>
-  <text class="small" x="822" y="456">No timer/shutdown sealing; active file may stay open</text>
-  <text class="small" x="822" y="474">No upload in the first rollout</text>
+  <rect class="external" x="820" y="300" width="320" height="90" rx="10"/>
+  <text class="h2" x="836" y="328">Kubernetes API (direct, no proxy)</text>
+  <text class="t" x="836" y="352">pull-secret → cloud.openshift.com token</text>
+  <text class="t" x="836" y="372">ClusterVersion → clusterID (cached)</text>
 
-  <rect class="deferred" x="40" y="570" width="1400" height="260" rx="18"/>
-  <text class="sectionTitle" x="64" y="599">DEFERRED · Dataverse OTel sidecar integration</text>
-  <text class="sectionNote" x="770" y="599">Dashed path = later packaging and downstream handoff</text>
+  <rect class="external" x="820" y="420" width="320" height="110" rx="10"/>
+  <text class="h2" x="836" y="448">console.redhat.com ingress</text>
+  <text class="t" x="836" y="472">POST /api/ingress/v1/upload, multipart</text>
+  <text class="t" x="836" y="492">HTTP 202 + request_id = acknowledged</text>
+  <text class="s" x="836" y="514">→ Dataverse extraction and analytics</text>
 
-  <rect class="future" x="65" y="615" width="380" height="128" rx="10"/>
-  <text class="h3" x="84" y="642">Dataverse exporter · data_mode: otel</text>
-  <text class="small" x="84" y="669">Read-only source: /var/lib/lightspeed-data/otel</text>
-  <text class="small" x="84" y="691">Only rotated backups; active traces.jsonl excluded</text>
-  <text class="small" x="84" y="713">Separate writable ledger outside the source</text>
+  <path class="arrow" d="M290 185H338"/>
+  <path class="arrow" d="M640 160H698"/>
+  <path class="arrow" d="M490 250V298"/>
+  <path class="dash" d="M760 345H818"/>
+  <path class="arrow" d="M760 475H818"/>
 
-  <rect class="future" x="520" y="615" width="400" height="128" rx="10"/>
-  <text class="h3" x="540" y="642">Per-backup packaging</text>
-  <text class="small" x="540" y="669">Each backup's JSONL batch objects stay intact</text>
-  <text class="small" x="540" y="689">in one array inside one gzip TAR member</text>
-  <text class="small" x="540" y="709">archive prefix v1/ is packaging only, not</text>
-  <text class="small" x="540" y="729">the trace schema version</text>
+  <rect class="classic" x="30" y="590" width="1140" height="50" rx="10"/>
+  <text class="h2" x="46" y="620">Classic path · unchanged</text>
+  <text class="t" x="290" y="620">Classic transcript/feedback files → app-server Dataverse exporter sidecar (json mode) → existing upload</text>
 
-  <rect class="future" x="995" y="615" width="390" height="128" rx="10"/>
-  <text class="h3" x="1015" y="642">Downstream SQL reconstruction</text>
-  <text class="small" x="1015" y="669">Sidecar uploads each per-backup archive</text>
-  <text class="small" x="1015" y="691">Dataverse ingestion → SQL reconstruction</text>
-  <text class="small" x="1015" y="713">Deferred; absent from the first rollout</text>
-
-  <text class="small" x="65" y="787">Sandbox GenAI semconv schema_url: 1.41.0 · any collected trace-contract change requires versioned downstream coordination; no OLS contract discriminator is specified.</text>
-
-  <rect class="classic" x="40" y="850" width="1400" height="68" rx="12"/>
-  <text class="h3" x="64" y="878">Classic path · unchanged</text>
-  <text class="small" x="64" y="903">Classic transcript/feedback files → existing app-server exporter + volume → existing Classic upload path</text>
-
-  <rect class="logs" x="40" y="932" width="1400" height="68" rx="12"/>
-  <text class="h3" x="64" y="960">Compliance logs · separate and unchanged</text>
-  <text class="small" x="64" y="985">Agentic compliance logs → templog → PostgreSQL only; separate from trace collection and Dataverse packaging</text>
-
-
-  <path class="arrow" d="M355 328 H395"/>
-  <path class="line" d="M690 328 H750 M750 216 V383"/>
-  <path class="arrow" d="M750 216 H790"/>
-  <path class="arrow" d="M750 383 H790"/>
-  <text class="small" x="359" y="315">OTLP</text>
-  <text class="small" x="697" y="352">fan-out</text>
-  <path class="futureArrow" d="M1080 486 V548 H255 V565"/>
-  <rect x="450" y="526" width="330" height="24" rx="4" fill="#edf7f3"/>
-  <text class="small" x="460" y="543">Deferred input · rotated backups only · read-only</text>
-  <path class="futureArrow" d="M445 679 H510"/>
-  <path class="futureArrow" d="M920 679 H985"/>
+  <rect class="classic" x="30" y="652" width="1140" height="50" rx="10"/>
+  <text class="h2" x="46" y="682">Compliance logs · unchanged</text>
+  <text class="t" x="290" y="682">Agentic OTLP logs → templog → PostgreSQL only; never part of product collection</text>
 </svg>

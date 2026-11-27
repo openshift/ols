@@ -1,17 +1,17 @@
 # Agentic Data Collection
 
-Canonical cross-repository contract for Agentic product-analysis data. The target design routes Agentic product traces through the existing OpenTelemetry Collector FileExporter, which writes native OTLP trace-batch JSONL on a bounded pod-local volume. The first planned operator rollout is local-file-only; later operator wiring is planned to add a Dataverse exporter sidecar in `otel` mode for rotated backups. The implementation-status section records staged rollout limits and remaining integration work.
+Canonical cross-repository contract for Agentic product-analysis data. Agentic product traces travel through the existing OpenTelemetry Collector. The released first stage wrote native OTLP trace-batch JSONL with FileExporter, and a Dataverse exporter sidecar in `otel` mode uploaded rotated backups. [PLANNED: OLS-4493] An OLS `dataverse` exporter inside the Collector replaces that file transport: it batches product traces in memory and uploads them directly to the Red Hat ingress service. No trace files exist. Decision [0052](../decisions/0052-in-collector-dataverse-exporter.md) records the change.
 
-[Agentic data collection map](agentic-data-collection-map.svg) shows the first local-file rollout and later Dataverse consumer path.
+[Agentic data collection map](agentic-data-collection-map.svg) shows the planned in-Collector export path.
 
 ## Principles
 
 1. [PLANNED: OLS-4246] Agentic product data MUST use the existing OTLP **trace** path. Agentic applications MUST NOT write product-data files.
 2. [PLANNED: OLS-4246] OTLP log records remain exclusively on the templog/PostgreSQL path. The Agentic exporter consumes traces only, not separate log or metric signals. Any event attached to an eligible trace span remains native trace evidence and MUST NOT be stripped or classified as a separate log by the Collector.
 3. [PLANNED: OLS-4246] Collection is opt-out. Native product traces are retained without product-path PII, secret, CR-field, prompt, context, tool-payload, skill-content, output, or reasoning redaction. On a recording sandbox source span, available raw callback output from successful native tool execution is retained independently of inspection, including a result rejected later. “Complete” means data exposed by the SDK callback after existing upstream limits, not unlimited process output. `LIGHTSPEED_CAPTURE_CONTENT` filters compliance copies only, not source or product traces. Reasoning is represented as ordered message parts, not separate reasoning events.
-4. [PLANNED: OLS-4246] The Collector routes eligible resources and writes native OTLP trace batches; it performs no product-semantic transformations.
+4. [PLANNED: OLS-4246] The Collector routes eligible resources and exports native OTLP trace batches; it performs no product-semantic transformations.
 5. [PLANNED: OLS-4246] Downstream consumers own flattening, deduplication, joins, ordered transcript assembly, run/phase reconstruction, outcome derivation, aggregation, logical SQL/dbt, and final model names.
-6. [PLANNED: OLS-4246] Preserve existing compliance audit, templog/PostgreSQL, configured trace-backend, and Classic product-collection behavior. The shared transcript opt-out still disables Classic transcripts; it MUST NOT disable independent compliance, templog, backend tracing, or Classic feedback under its existing control. This is not a promise of runtime failure isolation; native FileExporter failure semantics are defined below.
+6. [PLANNED: OLS-4246] Preserve existing compliance audit, templog/PostgreSQL, configured trace-backend, and Classic product-collection behavior. The shared transcript opt-out still disables Classic transcripts; it MUST NOT disable independent compliance, templog, backend tracing, or Classic feedback under its existing control. [PLANNED: OLS-4493] The `dataverse` exporter's failures do not reach producers or other trace consumers (rule 33).
 
 ## End-to-End Flow
 
@@ -21,21 +21,18 @@ agentic-operator + batch sandbox
               | existing OTLP traces
               v
       lightspeed-otel-collector
-              |                         |
-              | service-name route      | independent backend route
-              | no batch processor      | batch processor
-              v                         v
-      native FileExporter          configured trace backend
+              |                              |
+              | exact service-name route     | independent backend route
+              | no batch processor           | batch processor
+              v                              v
+      dataverse exporter                configured trace backend
+      own in-memory queue + batch
+      (4 MiB or 5 minutes)
               |
-              | native OTLP trace-batch JSONL
+              | one JSON array in a gzip TAR per batch
+              | HTTPS POST, cluster-wide proxy, OpenShift TLS profile
               v
-      otel/traces.jsonl + size-rotated backups
-              |
-              | first rollout ends here; FileExporter manages retention
-              |
-              | [PLANNED: later operator sidecar, data_mode: otel]
-              v
-      rotated backups only -> JSON array in gzip TAR -> upload
+      console.redhat.com ingress (HTTP 202 + request_id)
               |
               v
       Dataverse: logical Actions, transcripts, and analytics
@@ -43,16 +40,16 @@ agentic-operator + batch sandbox
 
 ## Enablement and Topology
 
-7. [PLANNED: OLS-4246] The initial local-file branch is enabled when `OLSConfig.spec.ols.userDataCollection.transcriptsDisabled` is false or absent. It requires neither `cloud.openshift.com` credentials nor a configured trace backend. The local-file branch has no separate OCP-version/bundle gate. This does not expand Agentic product support: Agentic operands and their handoff require the runtime OCP ≥ 5.0 gate under decision 0042; OCP 4.x runs Classic workloads only even though Agentic APIs and controller infrastructure are installed.
-8. [PLANNED: OLS-4246] `transcriptsDisabled` is the sole product collection control for both Classic transcripts and the Agentic local-file branch. `feedbackDisabled` continues to control only Classic feedback. `AgenticOLSConfig.spec.audit.enabled` controls compliance audit only. No new product-collection CR field is introduced.
+7. [PLANNED: OLS-4493] The product branch is enabled when `OLSConfig.spec.ols.userDataCollection.transcriptsDisabled` is false or absent **and** `openshift-config/pull-secret` holds a nonempty `.dockerconfigjson.auths["cloud.openshift.com"].auth` token. Without that token the operator generates no product route and no product pipeline, so no local trace copy exists. The branch does not require a configured trace backend and has no separate OCP-version/bundle gate. This does not expand Agentic product support: Agentic operands and their handoff require the runtime OCP ≥ 5.0 gate under decision 0042; OCP 4.x runs Classic workloads only even though Agentic APIs and controller infrastructure are installed.
+8. [PLANNED: OLS-4246] `transcriptsDisabled` is the sole user control for both Classic transcripts and the Agentic product branch. `feedbackDisabled` continues to control only Classic feedback. `AgenticOLSConfig.spec.audit.enabled` controls compliance audit only. No new product-collection CR field is introduced.
 9. [PLANNED: OLS-4246] Existing Classic behavior is unchanged: its feedback-or-transcripts and telemetry-credential gates, app-server transcript production, app-server Dataverse exporter sidecar, storage, service identity, and upload behavior remain as they are. That sidecar does not consume Collector files.
-10. [PLANNED: OLS-4246] The classic operator owns the local-file opt-out gate. Opt-out omits the product route, FileExporter pipeline, collection volume, and mount while preserving existing Collector consumers. The first rollout MUST NOT deploy an Agentic Dataverse sidecar. A later operator rollout adds that sidecar with its upload credentials and configuration; no upload-authentication gate is needed for local file creation.
+10. [PLANNED: OLS-4493] The classic operator owns the product branch gate. When the gate is off, the operator omits the product route, the `traces/data_collection` pipeline, the `dataverse` exporter, and its credential mount, while preserving existing Collector consumers. No Agentic Dataverse sidecar, collection volume, or ledger volume is deployed.
 11. [PLANNED: OLS-4246] Agentic producers neither receive nor evaluate collection state. The existing `lightspeed-agentic-configuration` ConfigMap key `otel-collector-endpoint` remains the Collector handoff; the agentic operator consumes it and uses the existing `OTEL_EXPORTER_OTLP_ENDPOINT` for itself and batch sandbox pods. OLS-4246 adds no endpoint environment variable or handoff ConfigMap key. Disabling templog does not disable product traces.
 
 ## Input Contract
 
-12. [PLANNED: OLS-4246] Eligible product input is limited to OTLP trace resources whose `service.name` is exactly `lightspeed-agentic-operator` or `lightspeed-agentic-sandbox`. All their spans and attached events are routed, regardless of operation name, GenAI content, inspection outcome, or run-correlation attributes. Unmatched resources are not written to the product file branch; backend forwarding remains independent.
-13. [PLANNED: OLS-4246] Run correlation is producer evidence, not a Collector eligibility predicate. Producers MUST stamp available literal `agenticrun.uid` and `agenticrun.phase` as span attributes; missing correlation does not cause FileExporter exclusion. The Collector MUST NOT infer missing correlation from resources, other spans, trace/span IDs, names, payloads, or topology.
+12. [PLANNED: OLS-4246] Eligible product input is limited to OTLP trace resources whose `service.name` is exactly `lightspeed-agentic-operator` or `lightspeed-agentic-sandbox`. All their spans and attached events are routed, regardless of operation name, GenAI content, inspection outcome, or run-correlation attributes. Unmatched resources do not enter the product branch; backend forwarding remains independent.
+13. [PLANNED: OLS-4246] Run correlation is producer evidence, not a Collector eligibility predicate. Producers MUST stamp available literal `agenticrun.uid` and `agenticrun.phase` as span attributes; missing correlation does not exclude a span from the product branch. The Collector MUST NOT infer missing correlation from resources, other spans, trace/span IDs, names, payloads, or topology.
 14. [PLANNED: OLS-4246] `agenticrun.uid` is the hyphenated `AgenticRun.metadata.uid` and is the stable cross-phase key. `agenticrun.phase` is one of `analysis`, `approval`, `execution`, `verification`, `escalation`, or `terminal`. Each phase may use a separate standard OTEL trace ID.
 15. [PLANNED: OLS-4246] For batch sandboxes, the operator propagates active trace context and correlation through the Kubernetes input ConfigMap and Pod environment (`TRACEPARENT`, `LIGHTSPEED_AGENTICRUN_UID`, and `LIGHTSPEED_AGENTICRUN_STEP`); the sandbox publishes its Result CR through the Kubernetes API. This collection contract does not use `/v1/agent/run`.
 16. [PLANNED: OLS-4246] The sandbox MUST translate the run UID and step supplied through its existing invocation configuration into literal span attributes on agent/model/tool and `tool_result.inspection` spans when supplied. Missing inspection correlation remains absent; no Resource, re-read process environment, parent-context, or other-span fallback is introduced. Attached events retain their native attributes without duplicating correlation solely for collection.
@@ -96,38 +93,43 @@ The producer facts and analytical goals below do not define Collector record cla
 22. [PLANNED: OLS-4246] Expected terminal evidence also covers `Completed / NoActionRequired`, ordinary failure, denial, escalation, `EmergencyStopped`, `Failed / CancellationFailed`, and `Failed / EmergencyStopFailed`. Product analytics MUST NOT invent a `Cancelled` product phase or rewrite the recorded `Failed / CancelledByUser` or failed-stop outcome.
 23. Native OTLP carries each selected source span with its attached events. Transport retries can duplicate delivery, so downstream consumers own logical interpretation and deduplication.
 
-## Native OTLP File Contract
+## Dataverse Exporter Contract
 
-24. [PLANNED: OLS-4246] Use contrib `fileexporter` v0.159.0 with JSON format and no compression. Each JSONL line is one complete native OTLP **trace-batch object**, potentially containing multiple `resourceSpans`, scopes, spans, and attached events. Preserve native identifiers, timestamps/status, resource/scope context, schema URLs, typed attributes, links, events, and dropped counts when present. The payload has no OLS-level `schema_version` field.
-25. [PLANNED: OLS-4246] The Collector product branch MUST NOT use a batch processor. Collector batching belongs only on the independently configured trace-backend branch; otherwise count batching can combine acceptable inputs into a FileExporter write above its size limit. This does not remove producer SDK OTLP transport batching.
-26. [PLANNED: OLS-4246] The operator supplies active path `/var/lib/lightspeed-data/otel/traces.jsonl`, `create_directory: true`, and rotation settings `max_megabytes: 16`, `max_backups: 16`, `max_days: 1`. The pinned rotator interprets the size as 16MiB. Collector reference configurations may use smaller trial settings; they are not the operator contract.
-27. [PLANNED: OLS-4246] Active-file rotation is size-triggered in the pinned implementation. It renames the active file to a timestamped backup (normally `traces-<timestamp>-size.jsonl`) and recreates the active name. `max_days` removes aged **backups**; it does not periodically seal an active file. Shutdown closes but does not force rotation. Rotation mode ignores `flush_interval`. Low-volume data may remain active indefinitely.
-28. Native span relationships/timestamps and ordered message/event data, not file, line, or arrival order, support downstream reconstruction.
-
-## Shared Volume, Retention, and Consumer Protocol
-
-29. [PLANNED: OLS-4246] The first operator rollout mounts a `data-collection` pod-local `emptyDir` with `sizeLimit: 500Mi` read-write at `/var/lib/lightspeed-data` in the Collector container only.
-30. [PLANNED: OLS-4246] FileExporter owns active files, size rotation, and backup deletion. One active file plus 16 backups at 16MiB is approximately 272MiB of normal retained data, below the 500Mi volume ceiling. Cleanup is asynchronous; this is bounded normal retention, not a hard instantaneous disk quota or a guarantee against node pressure, permissions, I/O errors, or other volume users. With no consumer, rotation evicts old data rather than accumulating files indefinitely.
-31. [PLANNED: OLS-4246] A later operator integration adds a separate Dataverse exporter sidecar with `data_mode: otel` (distinct from its authentication `mode`). Its source mount MUST be read-only and `data_dir` MUST address the directory containing `traces.jsonl` and its direct-child backups: mount the volume's `otel` subdirectory at the pickup root, or point to that subdirectory beneath a root mount. A separate writable `ledger_file` MUST be outside the source tree. Source mount, authentication, and ledger wiring are not part of the first rollout.
-32. [PLANNED: OLS-4246] The `otel` consumer excludes the active filename and discovers matching rotated backups only, without recursion. For each backup it skips blank lines, accepts a complete final JSON object without LF, and packages the batch objects into one top-level JSON array inside one gzip TAR member. It preserves record JSON apart from surrounding whitespace and array punctuation; it does not flatten OTLP, validate GenAI semantics, or filter correlation/content. Each backup is uploaded separately; successful acknowledgment records filename/request ID in the ledger. The consumer never deletes or modifies source files. FileExporter retention is independent of upload acknowledgment.
+24. [PLANNED: OLS-4493] The product branch `traces/data_collection` exports only to the OLS `dataverse` exporter (module `dataverseexporter` in `lightspeed-otel-collector`, traces signal only). The exporter writes no files, and no component reads a file another component writes. FileExporter, the `data-collection` volume, the Agentic Dataverse exporter sidecar, its `otel` data mode, and its ledger are removed from the product path.
+25. [PLANNED: OLS-4493] The product branch MUST NOT use a `batch` processor. The exporter batches with its own `exporterhelper` sending queue: in memory, `bytes` sizer, 32 MiB queue, one consumer, and a batch flush at 4 MiB or after 5 minutes. Every accepted trace is uploaded within the flush timeout plus upload time, at any volume. Low-volume data does not wait for file rotation. This does not remove producer SDK OTLP transport batching.
+26. [PLANNED: OLS-4493] Payload: the exporter marshals each batch with `ptrace.JSONMarshaler` into one native OTLP **trace-batch object**, the same shape as a FileExporter JSONL line. The object preserves native identifiers, timestamps/status, resource/scope context, schema URLs, typed attributes, links, events, and dropped counts when present. It has no OLS-level `schema_version` field. The exporter wraps the object in a one-element JSON array and packages it as the single member of a gzip TAR named `<archive_path_prefix>traces-<UTC yyyy-mm-ddThh-mm-ss.mmm>-<8 hex>.json`. The operator sets `archive_path_prefix: agentic-v1/`. A TAR larger than 100 MiB is dropped as a permanent error.
+27. [PLANNED: OLS-4493] Upload uses the existing ingress contract of the Python Dataverse exporter: `POST https://console.redhat.com/api/ingress/v1/upload`, multipart field `file`, filename `lightspeed-assistant.tgz`, part content type `application/vnd.redhat.<service_id>.periodic+tar`, `Authorization: Bearer <cloud.openshift.com auth>`, and `User-Agent: openshift-lightspeed-operator/user-data-collection cluster/<clusterID>`. The operator chooses `service_id` `ols` or `rhos-lightspeed` with its existing logic. Success is HTTP 202 with a JSON `request_id`.
+28. [PLANNED: OLS-4493] Credentials: the exporter reads the pull-secret token and `ClusterVersion` `spec.clusterID` through the Kubernetes API, with the projected ServiceAccount token that the operator mounts into the Collector container only while the gate is on. The operator does not copy the token and does not widen who can read the pull secret. The exporter loads credentials on the first upload attempt, never at start, and a credential failure MUST NOT stop the Collector. It re-reads the token before every upload attempt and caches the cluster ID. The token is never logged. The API client trusts only the ServiceAccount CA and connects directly, without a proxy.
+29. [PLANNED: OLS-4493] OpenShift TLS security profile: every TLS connection the exporter opens MUST use the minimum TLS version and cipher suites of the effective profile. The operator resolves it from `OLSConfig.spec.ols.tlsSecurityProfile`, then the cluster `APIServer` profile, then the Intermediate default, and writes `tls.min_version` and IANA `tls.cipher_suites` into the exporter configuration. Go does not allow TLS 1.3 cipher suites to be configured, so with a TLS 1.3 minimum only the version applies. A profile change rolls the Collector.
+30. [PLANNED: OLS-4493] Cluster-wide proxy: uploads MUST use the cluster-wide proxy when one is set. The exporter follows the `https_proxy` and `no_proxy` variables that the operator already passes to the Collector container; the operator does not set `proxy_url`. `OLSConfig.spec.ols.proxyConfig` configures LLM provider traffic and does not apply to the exporter. The operator creates a ConfigMap labeled `config.openshift.io/inject-trusted-cabundle: "true"`, mounts it read-only in the Collector container, and points `tls.ca_file` at its `ca-bundle.crt`, so TLS-inspecting proxies work.
+31. Native span relationships/timestamps and ordered message/event data, not batch, archive, or arrival order, support downstream reconstruction.
 
 ## Failure and Loss Semantics
 
-33. [PLANNED: OLS-4246] Accept native FileExporter failure semantics: invalid configuration or an unwritable path can fail Collector startup, and write failures can reject a shared OTLP trace request even if a backend branch already accepted it. Separate pipelines do not provide unconditional failure isolation. No product-specific Collector queue, retry wrapper, or filesystem recovery layer is introduced.
-34. [PLANNED: OLS-4246] A serialized JSON write larger than 16MiB is rejected rather than split. The operator's 20MiB OTLP receiver limit does not guarantee a batch fits after JSON encoding. JSON bytes and LF are separate writes; a boundary rotation can leave a complete final record without LF, which the consumer accepts.
-35. [PLANNED: OLS-4246] Same-pod Collector restart may append to the retained active file; it does not replay uploaded data or force active-file pickup. Unconsumed backups may be deleted by count/age retention. The future consumer's polling interval must account for backup turnover; there is no acknowledgment channel that postpones Collector cleanup.
-36. This path adds no fsync, persistent-volume requirement, exactly-once promise, or guaranteed delivery. Pod replacement/volume removal loses local files. Upload success followed by failed ledger persistence can cause duplicate delivery; downstream deduplication remains required. A small active file is not uploadable merely because the sidecar exists.
-37. Collector image and generated configuration MUST be rolled out together: an image without `fileexporter` cannot run the generated configuration.
+32. [PLANNED: OLS-4493] Error classification:
+
+| Condition | Result |
+|---|---|
+| Network error, timeout, HTTP 408, 429, 5xx, API server error while loading credentials | Retryable with backoff (30 s initial, 5 min maximum interval) for up to 1 hour |
+| Missing `cloud.openshift.com` auth, malformed `.dockerconfigjson` | Permanent: the batch is dropped and logged |
+| HTTP 401, 403, other 4xx (including 413) | Permanent: the batch is dropped and logged; the next batch re-reads the token |
+| Packaged TAR larger than 100 MiB | Permanent: the batch is dropped and logged |
+
+33. [PLANNED: OLS-4493] Fan-out isolation: when the exporter's queue is full, it counts and logs the dropped spans and returns success to the pipeline. Producers and other trace consumers (the configured trace backend or a customer-configured consumer) never see the exporter's queue or upload problems, and receive no duplicates because of them. A credential or ingress problem MUST NOT prevent the Collector from starting.
+34. [PLANNED: OLS-4493] Accepted loss: data is lost when an outage outlasts the 1-hour retry window, when the 32 MiB queue is full, on permanent errors, and when the Collector process stops or the pod is replaced (except what drains within the termination grace period). The first rollout from the file-based release loses the old pod's unuploaded files once. The path adds no persistent storage, guaranteed delivery, or exactly-once promise. A lost 202 response causes a retry and a duplicate upload, and a customer consumer's full queue can make producers retry; downstream deduplication remains required.
+35. [PLANNED: OLS-4493] Failures are silent to users: no producer error, no `OLSConfig` status condition, and no alert. `transcriptsDisabled: true` is the only user control. Logs and metrics serve Red Hat support through must-gather. Every successful upload logs one info-level line `Uploaded Agentic trace batch` with `request_id`, `archive_member`, `spans`, `payload_bytes`, and `duration`; the Collector's `otelcol.component.id` field identifies the exporter, so messages carry no component prefix. Each failed attempt logs the status or network error at warning level when retried and at error level when dropped; queue-full drops log at warning level, rate-limited.
+36. [PLANNED: OLS-4493] The exporter reports the standard `exporterhelper` metrics and a dropped-span count by reason (`queue_full`, `permanent_error`) unless an existing `exporterhelper` metric reports the same count. The existing Collector `ServiceMonitor` scrapes them.
+37. Collector image and generated configuration MUST be rolled out together: an image without the generated exporter component cannot run the generated configuration.
 
 ## Repository Ownership
 
 | Repository | Responsibility |
 |---|---|
-| `lightspeed-operator` | Generate opt-out-gated native FileExporter configuration and Collector-only local volume in the first rollout; later deploy/configure the Agentic Dataverse sidecar. Preserve the Classic path and supported Agentic operand version boundary. |
-| `lightspeed-agentic-operator` | Emit lifecycle, approval, Result CR, and terminal evidence; propagate existing endpoint and batch correlation without evaluating collection state. Producer coverage remains separate from file transport. |
+| `lightspeed-operator` | Generate the transcript-and-credential-gated `dataverse` exporter configuration with the TLS profile, mount the projected ServiceAccount token and trusted CA bundle into the Collector container, and keep the credential RBAC. Preserve the Classic path and supported Agentic operand version boundary. |
+| `lightspeed-agentic-operator` | Emit lifecycle, approval, Result CR, and terminal evidence; propagate existing endpoint and batch correlation without evaluating collection state. Producer coverage remains separate from export transport. |
 | `lightspeed-agentic-sandbox` | Emit pinned GenAI agent/model/tool spans with ordered content and available literal correlation; retain successful raw native tool results regardless of later inspection; never write product files. |
-| `lightspeed-otel-collector` | Route exact eligible service resources into an unbatched native FileExporter branch; own local rotation and retention, not logical transforms or uploads. |
-| `lightspeed-core/lightspeed-to-dataverse-exporter` | Add `otel` mode for rotated JSONL discovery, array/TAR packaging, upload, and acknowledgment ledger; do not own source retention or semantic reconstruction. |
+| `lightspeed-otel-collector` | Route exact eligible service resources into an unbatched product branch; own the `dataverse` exporter's batching, packaging, upload, credentials, and failure isolation, not logical transforms. |
+| `lightspeed-core/lightspeed-to-dataverse-exporter` | Keep the Classic `json` mode. [PLANNED: OLS-4493] Remove the `otel` mode and its ledger after the operator release that stops using it. |
 | Dataverse data product | Own native OTLP extraction, version-aware SQL/dbt, deduplication, joins, ordered transcripts, run/phase reconstruction, outcome derivation, and analytics. |
 
 ## Relationship to Audit and Templog
@@ -145,20 +147,20 @@ The producer facts and analytical goals below do not define Collector record cla
     - Breaking changes include removed/renamed fields, spans, or events; changed types, nesting, encoding, units, or meaning; changed correlation/parent relationships, operation/message shapes, source-content policy, status/outcome semantics, or collection selection; and upstream SDK/semantic-convention changes with those effects.
     - A change classified as breaking MUST increment the Agentic Dataverse schema/data-contract version and update the corresponding Dataverse exporter configuration. Compatible downstream extraction/transformation changes MUST be ready before producer rollout. The review MUST establish how the consumer identifies the actual contract for supported producer versions and mixed-version deployments; a configuration-only bump does not change producer output.
     - Missing compatibility classification, version decision, or required owner approval blocks merge. Unavailable downstream evidence is an unresolved gate, not proof of compatibility. Compatibility review is required even when the author expects no breaking change.
-42. The semantic-convention schema URL versions upstream conventions; the consumer's `archive_path_prefix` (for example, `v1/` or the operator-generated `agentic-v1/`) currently names archive organization, and ledger `version: 1` versions internal checkpoint state. None alone establishes a complete OLS producer contract version. The current contract does not specify a complete product-contract discriminator/compatibility check; selecting and wiring that mechanism remains an explicit integration gap. An archive prefix MAY serve as the product-contract discriminator only after Dataverse owners explicitly adopt it and downstream routing/transformation enforces its meaning. Do not invent an implemented `schema_version` payload/configuration field or treat arbitrary JSON-object acceptance as semantic compatibility. A breaking rollout MUST NOT proceed while its consumer-visible discriminator is unresolved.
+42. The semantic-convention schema URL versions upstream conventions; the `archive_path_prefix` (for example, `v1/` or the operator-generated `agentic-v1/`) currently names archive organization. Neither alone establishes a complete OLS producer contract version. The current contract does not specify a complete product-contract discriminator/compatibility check; selecting and wiring that mechanism remains an explicit integration gap. An archive prefix MAY serve as the product-contract discriminator only after Dataverse owners explicitly adopt it and downstream routing/transformation enforces its meaning. Do not invent an implemented `schema_version` payload/configuration field or treat arbitrary JSON-object acceptance as semantic compatibility. A breaking rollout MUST NOT proceed while its consumer-visible discriminator is unresolved.
 
 The adopted upstream content attributes are designated Opt-In, while this product plan deliberately specifies opt-out collection and source content whenever tracing records. Neither `transcriptsDisabled` nor `LIGHTSPEED_CAPTURE_CONTENT` configures producer-side source-content opt-in. That policy difference requires explicit governance resolution; structural alignment MUST NOT be described as full conformance to upstream content-consent guidance. This alignment does not introduce a new runtime gate.
 
 ## Implementation Status and Planned Changes
 
-Status reviewed 2026-10-03: the component changes remained proposed and did not establish merged implementation or production end-to-end delivery. The target rollout is staged; the first operator stage is local-file-only, while Dataverse consumption and its operator wiring remain later work.
+Status reviewed 2026-11-25. The file-based transport (FileExporter, `data-collection` volume, and Dataverse exporter sidecar in `otel` mode) shipped in a released bundle, and OLS-4491 verified the released Collector-to-Dataverse path. That transport left quiet active files unuploaded, deleted backups regardless of upload, and could reject shared OTLP requests. OLS-4493 replaces it.
 
 | Stage | Scope / rollout boundary |
 |---|---|
-| Collector local-file branch | Target scope is a native FileExporter component and unbatched file branch; this scope alone does not establish operator deployment or Dataverse upload. |
-| Sandbox producer | Target scope is standard GenAI source spans and independent compliance projections; producer evidence does not establish file or sidecar deployment. |
-| First operator rollout | Planned scope is local collection/configuration and bounded volume only; no Dataverse consumer is included. |
-| Dataverse consumer | The planned `otel` mode processes rotated files only; it does not deploy the Collector sidecar or establish downstream SQL compatibility. |
-| Later operator sidecar [PLANNED: OLS-4246] | Wire compatible images, a read-only source path, a writable ledger, upload identity/credentials/configuration, and actual collection-to-upload validation. |
+| Sandbox producer | Target scope is standard GenAI source spans and independent compliance projections; producer evidence does not establish export or upload. |
+| Collector `dataverse` exporter [PLANNED: OLS-4493] | New component with batching, packaging, credentials, error classification, fan-out isolation, TLS profile, and proxy support; FileExporter removed from the image. |
+| Operator wiring [PLANNED: OLS-4493] | Generate the exporter configuration, mount the token and trusted CA bundle into the Collector, and remove the sidecar, its ConfigMap, and both data volumes. Ships with the new Collector image (rule 37). |
+| Dataverse compatibility [PLANNED: OLS-4493] | One trace-batch object per TAR member replaces one array of many objects per backup; rule 41 review with the Dataverse owners before the packaging change merges. |
+| Dataverse exporter cleanup [PLANNED: OLS-4493] | Remove `otel` mode after the operator release that stops using it; released bundles pin their own image. |
 
-The 2026-10-03 status review recorded an isolated OpenShift smoke using generated resources, including Collector file writes under an assigned UID and the opt-out variant; that smoke does not establish a full operator/OLSConfig rollout. Remaining integration checks are versioning of all collected-contract changes; low-volume active-file delivery under size-only rotation; consumption before retention eviction; the later sidecar's Kubernetes read-only source mount and writable ledger; full operator rollout; producer coverage; and downstream SQL extraction. This spec alignment does not itself verify cluster, sidecar, external Dataverse, or Snowflake runtime behavior.
+Remaining checks: Dataverse parsing of the new packaging (OLS-4492), a low-volume upload within about 6 minutes on a cluster, a cluster-wide TLS-inspecting proxy with the Modern profile, Collector memory under representative load, producer coverage, and downstream SQL extraction.

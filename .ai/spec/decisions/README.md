@@ -108,7 +108,8 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 
 | # | Decision | Repos |
 |---|---|---|
-| [0043](0043-agentic-data-collection-via-otel.md) | Target architecture: first stage is local FileExporter trace-batch JSONL; later Dataverse OTel consumption and operator wiring; staged rollout and integration limits are documented in the ADR | operator, agentic-operator, agentic-sandbox, collector, lightspeed-core/lightspeed-to-dataverse-exporter |
+| [0043](0043-agentic-data-collection-via-otel.md) | Target architecture: first stage is local FileExporter trace-batch JSONL; later Dataverse OTel consumption and operator wiring; file transport superseded by 0052 | operator, agentic-operator, agentic-sandbox, collector, lightspeed-core/lightspeed-to-dataverse-exporter |
+| [0052](0052-in-collector-dataverse-exporter.md) | [PLANNED: OLS-4493] In-Collector `dataverse` exporter batches Agentic traces in memory and uploads directly to ingress; no trace files, no sidecar | operator, collector, lightspeed-core/lightspeed-to-dataverse-exporter |
 
 ### Operand Network Policies (2026-09)
 
