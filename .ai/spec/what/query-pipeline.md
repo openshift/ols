@@ -23,6 +23,8 @@ End-to-end flow for processing a user question: from console submission through 
 9. YAML attachments get resource kind/name extracted for contextual introduction.
 10. Formatted attachments are appended to the query text.
 
+> [PLANNED: OLS-4671] Stage 7 moves to the shared DeepAgents execution core. Budget truncation (rules 11, 13), history compression (rules 15–17 become a per-conversation DeepAgents checkpoint whose summarization is mapped to the same events), prompt-budget validation (rule 22), the tool budget and the Classic loop (rules 26–27) are replaced; approval keeps its contract; at the turn limit the user is asked to continue (`continuation_required`). See `unified-execution-core.md`.
+
 ### Stage 3 — Token Budget & RAG Retrieval (lightspeed-service)
 
 11. The token budget is computed: `context_window - response_reserve (4096) - tool_reserve (25% default)` = prompt budget.
@@ -91,7 +93,7 @@ End-to-end flow for processing a user question: from console submission through 
 | `DELETE /v1/conversations/{id}` | Delete conversation |
 | `POST /v1/feedback` | Submit user feedback |
 | `POST /v1/mcp-apps/tools/call` | Proxy tool calls to MCP servers |
-| `POST /v1/tool-approvals/decision` | Submit approval/rejection for pending tool execution |
+| `POST /v1/tool-approvals/decision` | Submit approval/rejection for pending tool execution; [PLANNED: OLS-4671] also accepts `continuation_id` with Continue/Stop |
 
 ### Streaming Events (SSE, application/json)
 
@@ -104,7 +106,8 @@ End-to-end flow for processing a user question: from console submission through 
 | `approval_required` | approval_id, tool metadata | User must approve tool |
 | `tool_result` | id, status, content, round | Tool execution completed and [PLANNED: OLS-3928] all results in its concurrent round passed inspection |
 | `skill_selected` | name | Skill matched to query |
-| `history_compression_start/end` | — | History being compressed |
+| `history_compression_start/end` | — | History being compressed ([PLANNED: OLS-4671] DeepAgents summarization start/end) |
+| `continuation_required` | continuation_id, turns_used, turn_limit | [PLANNED: OLS-4671] Turn limit reached; user decides Continue or Stop via `/v1/tool-approvals/decision` |
 | `end` | referenced_documents, token counts | Stream complete |
 | `error` | status_code, response, cause | Error occurred |
 
@@ -153,4 +156,5 @@ LLMRequest:
 | ~~OLS-2776~~ | ~~Support Anthropic as direct LLM provider~~ [DONE] |
 | OLS-1660 | Llama Stack integration |
 | OLS-3442 | Reasoning token support: per-model `reasoningConfig` for all providers, streaming accumulation fix, vLLM `ChatVLLMReasoning` subclass |
+| OLS-4671 | Run Stage 7 on the shared DeepAgents execution core; delegate context management; add turn-limit continuation. See `unified-execution-core.md`. |
 | OLS-3599 | BYOK content prioritization: conditional prompt instructions in Stage 6 to elevate BYOK domain knowledge and demote OKP tool guidance when both are active |

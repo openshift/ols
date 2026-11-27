@@ -114,6 +114,15 @@ Lookup table: concern → repo(s) → spec file(s). Use this to find where to go
 | Product trace instrumentation (GenAI semconv `schema_url` 1.41.0; successful raw tool results remain evidence even if inspection rejects them) | lightspeed-agentic-sandbox | [PLANNED: OLS-4246] parent [collection contract](../what/agentic-data-collection.md); `what/data-collection.md`, `what/audit-logging.md`, `what/provider-contract.md`, `what/run-api.md` |
 | Token usage per sandbox invocation and AgenticRun, plus operator Prometheus export | lightspeed-agentic-sandbox, lightspeed-agentic-operator | [OLS-3661, OLS-4920, OLS-4921; PLANNED: OLS-3998] parent [token usage contract](../what/token-usage.md); sandbox measurement remains defined by `what/provider-contract.md`, `what/run-api.md`, and `how/provider-architecture.md`; operator aggregation, completeness, and metric export are defined by `what/crd-api.md`, `what/sandbox-execution.md`, and `what/system-overview.md`; ADR `decisions/0049-sandbox-token-usage-accounting.md` |
 
+## Shared — Execution Core [PLANNED: OLS-4671]
+
+| Concern | Repo | Spec Files |
+| --- | --- | --- |
+| Shared DeepAgents execution core (agent, routing, MCP, inspection, context management, approval/turn-limit middleware, usage, tracing) | lightspeed-agent-core (new; not yet created) | Parent `what/unified-execution-core.md`; ADR `decisions/0052-shared-deepagents-execution-core.md`; planned core specs: [spec plan](../../../docs/superpowers/specs/2026-11-23-OLS-4671-agent-core-spec-plan.md) |
+| Core distribution (hash-pinned GitHub release sdist, provider extras) | lightspeed-agent-core, lightspeed-service, lightspeed-agentic-sandbox | Parent `what/unified-execution-core.md` rules 8–13 |
+| Chat entry point on the core, turn-limit continuation | lightspeed-service, lightspeed-console | Parent `what/unified-execution-core.md`; child service `what/execution-core.md` (plus planned markers in `what/tools.md`, `what/agent-modes.md`, `what/query-processing.md`, `what/api.md`); console via implementation story (no `.ai/spec/`) |
+| Batch entry point on the core | lightspeed-agentic-sandbox | Parent `what/unified-execution-core.md`; child sandbox `what/provider-contract.md` rules 68–74, decision `0004-consume-shared-agent-core.md` |
+
 ## Agentic OLS — Alerts Adapter
 
 | Concern | Repo | Spec Files |
@@ -194,6 +203,7 @@ These features span multiple repos. See the parent `what/` files for end-to-end 
 | Temporary audit log storage | `what/templog.md` | lightspeed-otel-collector, operator, agentic-operator, agentic-sandbox |
 | Agentic product data collection | [PLANNED: OLS-4246] [canonical collection contract](../what/agentic-data-collection.md) (target first stage: local FileExporter trace-batch JSONL; later: rotated-file Dataverse OTel consumer and operator wiring) | operator, agentic-operator, agentic-sandbox, otel-collector, lightspeed-core/lightspeed-to-dataverse-exporter |
 | Dataverse OTel rotated-file consumer (later rollout) | [PLANNED: OLS-4246] [canonical collection contract](../what/agentic-data-collection.md) | lightspeed-core/lightspeed-to-dataverse-exporter; lightspeed-operator (consumer mount and sidecar wiring planned) |
+| Unified execution core | [PLANNED: OLS-4671] `what/unified-execution-core.md` | agent-core (new), service, agentic-sandbox, console |
 | Multicluster operations | `what/multicluster-ops.md` | hub, hub-ui, agentic-operator, alerts-adapter |
 | Alerts-adapter multicluster support | `what/alerts-adapter-multicluster.md` | alerts-adapter, hub, operator |
 | Multicluster testing | `what/multicluster-testing.md` | hub, agentic-operator, alerts-adapter, hub-ui |

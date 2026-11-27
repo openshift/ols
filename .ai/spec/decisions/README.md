@@ -141,6 +141,12 @@ Each file follows the naming convention `NNNN-slug.md` (e.g., `0001-langchain-ll
 |---|---|---|
 | [0049](0049-sandbox-token-usage-accounting.md) | [PLANNED: OLS-3760] Callback-based token accounting per sandbox invocation; outputTokens stays billed total, reasoning as complete-or-unset subset, tool/skill tokens from input differences | agentic-sandbox, agentic-operator |
 
+### Unified Execution Core (2026-11)
+
+| # | Decision | Repos |
+|---|---|---|
+| [0052](0052-shared-deepagents-execution-core.md) | [PLANNED: OLS-4671] One DeepAgents core library (`lightspeed-agent-core`) for chat and batch; hash-pinned sdist without a package index; sandbox implementation wins; context management delegated to DeepAgents; custom approval and turn-limit continuation middleware; hard cutover | service, agentic-sandbox, console, agent-core (new) |
+
 ### FIPS Compliance (2026-11)
 
 | # | Decision | Repos |

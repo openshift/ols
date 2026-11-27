@@ -56,6 +56,7 @@ These features span multiple repos and have dedicated spec files describing the 
 | Multicluster operations | `what/multicluster-ops.md` | hub, hub-ui, agentic-operator, alerts-adapter |
 | Alerts-adapter multicluster support | `what/alerts-adapter-multicluster.md` | alerts-adapter, hub, operator |
 | Multicluster testing | `what/multicluster-testing.md` | hub, agentic-operator, alerts-adapter, hub-ui |
+| Unified execution core [PLANNED: OLS-4671] | `what/unified-execution-core.md` | agent-core (new), service, agentic-sandbox, console |
 
 ## Planned Changes
 
@@ -63,4 +64,5 @@ These features span multiple repos and have dedicated spec files describing the 
 | --- | --- |
 | OLS-2743 | Rebranding to "Red Hat OpenShift Intelligent Assistant" |
 | OLS-3473 | Remove Claude SDK and binaries from agentic-sandbox. Reroute Vertex/Anthropic and Bedrock paths to alternative agentic SDKs. |
+| OLS-4671 | Run Classic chat and Agentic batch on one DeepAgents execution core in a new `lightspeed-agent-core` library repo; remove the Classic tool-calling loop after a parity gate. See `what/unified-execution-core.md` and decision 0052. |
 | OLS-4007 | Consolidate to one unified Classic + Agentic OLM bundle; require explicit AgenticOLSConfig creation for workflow execution and enforce runtime OCP-version safety gates. Release migration and retirement of Classic v1 are gated by OLS-4348–OLS-4352. See decision 0042. |
